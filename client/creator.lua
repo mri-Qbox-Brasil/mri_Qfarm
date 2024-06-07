@@ -1,8 +1,3 @@
-local FarmZones = GlobalState.FarmZones or {}
-local ColorScheme = GlobalState.UIColors or {}
-local Items = exports.ox_inventory:Items()
-local ImageURL = 'https://cfx-nui-ox_inventory/web/images'
-
 local newFarm = {
     name = nil,
     config = {
@@ -40,14 +35,12 @@ local newItem = {
     animation = newAnim
 }
 
-local Utils = lib.require('client/utils')
-
-AddStateBagChangeHandler('FarmZonesUpdate', 'global', function(bagName, key, data)
-    FarmZones[data.key] = data.value
+AddStateBagChangeHandler('FarmsUpdate', 'global', function(bagName, key, data)
+    Farms[data.key] = data.value
 end)
 
 local function ReloadFarms()
-    FarmZones = GlobalState.FarmZones or {}
+    Farms = GlobalState.Farms or {}
 end
 
 local function UpdateFarms()
@@ -77,25 +70,26 @@ local function Delete(caption, tableObj, key)
 end
 
 local function DeleteFarm(args)
-    Delete(locale('actions.confirmation_description', locale('actions.farm'), FarmZones[args.key].name), FarmZones,
-        args.key)
+    Delete(locale('actions.confirmation_description', locale('actions.farm'), Farms[args.key].name), Farms, args.key)
     ManageFarms()
 end
 
 local function DeleteItem(args)
     Delete(locale('actions.confirmation_description', locale('actions.item'), Items[args.itemKey].label),
-        FarmZones[args.farmKey].config.items, args.itemKey)
-    StepFour({key = args.farmKey})
+        Farms[args.farmKey].config.items, args.itemKey)
+    StepFour({
+        key = args.farmKey
+    })
 end
 
 local function DeletePoint(args)
     Delete(locale('actions.confirmation_description', locale('actions.point'), args.name),
-        FarmZones[args.farmKey].config.items[args.itemKey].points, args.pointKey)
+        Farms[args.farmKey].config.items[args.itemKey].points, args.pointKey)
 
 end
 
 local function SaveItem(args)
-    local farm = FarmZones[args.farmKey]
+    local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     if #item.points == 0 then
         lib.notify({
@@ -116,7 +110,7 @@ end
 local function ChangeFarmLocation(args)
     local location = GetActualPosition()
     if location then
-        FarmZones[args.key].config.start = {
+        Farms[args.key].config.start = {
             location = location,
             width = Config.FarmBoxWidth,
             length = Config.FarmBoxLength
@@ -132,7 +126,7 @@ end
 local function ChangePointLocation(args)
     local location = GetActualPosition()
     if location and location ~= 2 then
-        FarmZones[args.farmKey].config.items[args.itemKey].points[args.pointKey] = location
+        Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey] = location
         lib.notify({
             type = 'success',
             description = locale('notify.updated')
@@ -142,7 +136,7 @@ local function ChangePointLocation(args)
 end
 
 local function TeleportToLocation(args)
-    Utils.TpToLoc(FarmZones[args.key].config.start.location)
+    Utils.TpToLoc(Farms[args.key].config.start.location)
     ActionMenu(args.key)
 end
 
@@ -157,7 +151,7 @@ local function ChangeLabel(args)
     if input then
         local newValue = args.value
         newValue.name = input[1]
-        FarmZones[args.key] = newValue
+        Farms[args.key] = newValue
     end
     ActionMenu(args.key)
     lib.notify({
@@ -170,7 +164,7 @@ local function StepOne(title, key)
     local farm = {}
     table.clone(newFarm, farm)
     if key then
-        farm = FarmZones[key]
+        farm = Farms[key]
     end
     local input = lib.inputDialog(title, {{
         type = 'input',
@@ -201,16 +195,16 @@ local function StepOne(title, key)
             description = 'Step One'
         })
         if not key then
-            key = #FarmZones + 1
-            FarmZones[key] = farm
+            key = #Farms + 1
+            Farms[key] = farm
         end
-        FarmZones[key] = farm
+        Farms[key] = farm
         return key
     end
 end
 
 local function StepTwo(title, key)
-    local farm = FarmZones[key]
+    local farm = Farms[key]
     local input = lib.inputDialog(title, {{
         type = 'select',
         label = locale('creator.grade'),
@@ -227,7 +221,7 @@ local function StepTwo(title, key)
             type = 'info',
             description = 'Step Two'
         })
-        FarmZones[key] = farm
+        Farms[key] = farm
         return true
     end
 end
@@ -351,7 +345,7 @@ end
 local function CreateItemSteps(text, farmKey, item, itemKey)
     local _item = item
     if itemKey then
-        _item = FarmZones[farmKey].config.items[itemKey]
+        _item = Farms[farmKey].config.items[itemKey]
     end
     local result, _item = ItemStepOne(text, itemKey, _item)
     if not result then
@@ -366,7 +360,7 @@ local function CreateItemSteps(text, farmKey, item, itemKey)
         new = true
         itemKey = _item.name
         _item.name = nil
-        FarmZones[farmKey].config.items[itemKey] = _item
+        Farms[farmKey].config.items[itemKey] = _item
     end
     ItemActionMenu(farmKey, itemKey, new)
 end
@@ -376,7 +370,7 @@ local function CreateItem(args)
     table.clone(newItem, item)
     local text = locale('menus.new_item')
     if args and args.itemKey then
-        local farm = FarmZones[args.farmKey]
+        local farm = Farms[args.farmKey]
         newItem = farm.config.items[args.itemKey]
         text = locale('menus.edit_item', args.itemKey)
     end
@@ -416,7 +410,7 @@ function PointMenu(args)
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
-                pointKey = args.pointKey,
+                pointKey = args.pointKey
             }
         }}
     }
@@ -426,17 +420,17 @@ end
 
 local function AddPoints(args)
     local keepLoop = true
-    local farm = FarmZones[args.farmKey]
+    local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     while keepLoop do
         Wait(0)
         local result = GetActualPosition(locale('actions.choose_location.3'))
         keepLoop = result ~= 2
         if result ~= 2 then
-            item.points[#item.points+1] = GetEntityCoords(PlayerPedId())
+            item.points[#item.points + 1] = GetEntityCoords(PlayerPedId())
         end
     end
-    FarmZones[args.farmKey].config.items[args.itemKey] = item
+    Farms[args.farmKey].config.items[args.itemKey] = item
     ItemActionMenu(args.farmKey, args.itemKey)
 end
 
@@ -458,7 +452,7 @@ local function ListPoints(args)
             }
         }}
     }
-    local farm = FarmZones[args.farmKey]
+    local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     for k, v in pairs(item.points) do
         ctx.options[#ctx.options + 1] = {
@@ -479,7 +473,7 @@ local function ListPoints(args)
 end
 
 function ItemActionMenu(farmKey, itemKey, new)
-    local farm = FarmZones[farmKey]
+    local farm = Farms[farmKey]
     local items = farm.config.items[itemKey]
     local ctx = {
         id = 'action_item',
@@ -530,7 +524,7 @@ function ItemActionMenu(farmKey, itemKey, new)
 end
 
 local function StepThree(key)
-    local farm = FarmZones[key]
+    local farm = Farms[key]
     local text = {locale('actions.choose_location.1'), locale('actions.choose_location.2')}
     if Utils.GetPedCoords(table.concat(text)) == 1 then
         local location = GetEntityCoords(PlayerPedId())
@@ -544,13 +538,13 @@ local function StepThree(key)
             width = Config.FarmBoxWidth,
             length = Config.FarmBoxLength
         }
-        FarmZones[key] = farm
+        Farms[key] = farm
         return true
     end
 end
 
 function StepFour(args)
-    local farm = FarmZones[args.key] or newFarm
+    local farm = Farms[args.key] or newFarm
     local ctx = {
         id = 'items_farm',
         title = locale('menus.items'),
@@ -624,7 +618,7 @@ local function CreateFarm(args)
     local key = false
     local dialogText = locale('creator.new_farm')
     if args and args.key then
-        local farm = FarmZones[args.key]
+        local farm = Farms[args.key]
         dialogText = locale('creator.edit_farm', farm.name)
         key = args.key
     end
@@ -632,7 +626,7 @@ local function CreateFarm(args)
 end
 
 function ActionMenu(key)
-    local farm = FarmZones[key]
+    local farm = Farms[key]
     local ctx = {
         id = 'action_farm',
         title = farm.name:upper(),
@@ -688,7 +682,7 @@ end
 
 local function GetMetadataFromFarm(key)
     local data = {}
-    local items = FarmZones[key].config.items
+    local items = Farms[key].config.items
     for k, v in pairs(items) do
         data[#data + 1] = {
             label = locale('menus.route'),
@@ -713,7 +707,7 @@ function ManageFarms()
             onSelect = CreateFarm
         }}
     }
-    for k, v in pairs(FarmZones) do
+    for k, v in pairs(Farms) do
         local groupName = Utils.GetBaseGroups(true)[v.group.name].label
         local description = locale('menus.description_farm', groupName)
         ctx.options[#ctx.options + 1] = {

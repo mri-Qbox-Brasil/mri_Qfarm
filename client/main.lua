@@ -1,22 +1,25 @@
+Farms = GlobalState.Farms or {}
+ColorScheme = GlobalState.UIColors or {}
+Items = exports.ox_inventory:Items()
+ImageURL = 'https://cfx-nui-ox_inventory/web/images'
+Utils = lib.require('client/utils')
+
 local QBCore = exports["qb-core"]:GetCoreObject()
 
-local FarmZones = GlobalState.FarmZones or {}
-local ColorScheme = GlobalState.UIColors or {}
-local Items = exports.ox_inventory:Items()
-local ImageURL = 'https://cfx-nui-ox_inventory/web/images'
-
-local PlayerData = {}
-local PlayerJob = {}
-local PlayerGang = {}
+local PlayerData = nil
+local PlayerJob = nil
+local PlayerGang = nil
 
 local tasking = false
 local currentPoint = 0
 local currentSequence = 0
+local markerCoords = nil
 local blip = 0
 
 local startFarm = false
 
 local farmingItem = nil
+local playerFarm = nil
 
 local farmZones = {}
 local farmPoints = {}
@@ -34,7 +37,7 @@ local blipSettings = {
     scale = 1.0,
     shortRange = false,
     route = true,
-    text = Lang:t("misc.farm_point")
+    text = locale("misc.farm_point")
 }
 
 local defaultAnim = {
@@ -50,39 +53,23 @@ local defaultAnim = {
     z = 0
 }
 
-local marker = nil
-
-local function GetItem(itemName)
-    if (itemName == "cash") then
-        return {
-            ["weight"] = 0.01,
-            ["name"] = "cash",
-            ["description"] = "Dinheiro",
-            ["shouldClose"] = true,
-            ["unique"] = true,
-            ["image"] = "farm-cash.png",
-            ["label"] = "Dinheiro",
-            ["useable"] = false,
-            ["type"] = "item"
-        }
-    else
-        return QBCore.Shared.Items[itemName]
-    end
-end
-
-local function CreateBlip(coords)
-    blip = AddBlipForCoord(coords.x, coords.y, coords.z)
-    SetBlipSprite(blip, 465)
-    SetBlipScale(blip, 1.0)
-    SetBlipAsShortRange(blip, false)
+local function CreateBlip(data)
+    local coordenadas = data.coordenadas
+    local b = AddBlipForCoord(coordenadas.x, coordenadas.y, coordenadas.z)
+    SetBlipSprite(b, data.sprite)
+    SetBlipColour(b, data.color)
+    SetBlipScale(b, data.scale)
+    SetBlipAsShortRange(b, data.shortRange)
+    SetBlipRoute(b, data.route)
     BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(Lang:t("misc.farm_point"))
-    EndTextCommandSetBlipName(blip)
+    AddTextComponentString(data.text)
+    EndTextCommandSetBlipName(b)
+    return b
 end
 
-local function DeleteBlip()
-    if DoesBlipExist(blip) then
-        RemoveBlip(blip)
+local function DeleteBlip(b)
+    if DoesBlipExist(b) then
+        RemoveBlip(b)
     end
 end
 
@@ -107,11 +94,7 @@ end
 local function FinishPicking()
     tasking = false
     ClearPedTasks(PlayerPedId())
-    if (Config.useTTCLibs) then
-        ttc.client.removeBlip("gps", scriptName, blip)
-    else
-        DeleteBlip()
-    end
+    DeleteBlip(blip)
 end
 
 local function ActionProcess(name, description, duration, done, cancel)
@@ -123,7 +106,7 @@ local function ActionProcess(name, description, duration, done, cancel)
     }, nil, nil, nil, done, cancel)
 end
 
-local function nextTask(shuffle)
+local function NextTask(shuffle)
     if tasking then
         return
     end
@@ -133,22 +116,20 @@ local function nextTask(shuffle)
         currentPoint = currentSequence + 1
     end
     tasking = true
-    marker = {
+    markerCoords = {
         x = farmPoints[currentPoint].x,
         y = farmPoints[currentPoint].y,
         z = farmPoints[currentPoint].z
     }
-    blipSettings.coordenadas = marker
-    if (Config.useTTCLibs) then
-        blip = ttc.client.addBlip("gps", scriptName, blipSettings)
-    else
-        CreateBlip(farmPoints[currentPoint])
-    end
+    blipSettings.coordenadas = markerCoords
+    blipSettings.text = locale("misc.farm_point")
+    blipSettings.sprite = 465
+    blip = CreateBlip(blipSettings)
 end
 
-local function LoadFarmZones(role, item, name)
+local function LoadFarmZones(itemName, item)
     for point, zone in pairs(item.points) do
-        local label = ("farmZone-%s-%s"):format(name, point)
+        local label = ("farmZone-%s-%s"):format(itemName, point)
         farmPointZones[point] = {
             isInside = false,
             zone = BoxZone:Create(zone, 0.6, 0.6, {
@@ -165,34 +146,41 @@ local function LoadFarmZones(role, item, name)
                 if point == currentPoint then
                     CreateThread(function()
                         while farmPointZones[point].isInside and point == currentPoint do
-                            exports["qb-core"]:DrawText(Lang:t("task.start_task"), "right")
+                            lib.showTextUI(locale("task.start_task"), {
+                                position = 'right-center'
+                            })
                             if not IsPedInAnyVehicle(PlayerPedId()) and IsControlJustReleased(0, 38) then
-                                if (Farms[role]["car"] == nil or
+                                if ((playerFarm and playerFarm.config["car"] == nil) or
                                     IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
-                                        GetHashKey(Farms[role]["car"].model))) then
-                                    exports["qb-core"]:HideText()
+                                        GetHashKey(playerFarm.config["car"].model))) then
+                                    lib.hideTextUI()
                                     farmPointZones[point].zone:destroy()
                                     currentSequence = currentPoint
                                     currentPoint = -1
                                     local duration = math.random(6000, 8000)
-                                    local animation = GetDefaultAnim()
+                                    local animation = defaultAnim
                                     if (item["animation"]) then
                                         animation = item.animation
                                     end
                                     animation["duration"] = duration
                                     PickAnim(animation)
-                                    local item = GetItem(name)
-                                    ActionProcess(name, Lang:t("progress.pick_farm", {
-                                        item = item.label
-                                    }), duration, function() -- Done
-                                        TriggerServerEvent("mri_Qfarm:server:getRewardItem", name, "farm")
+                                    local item = Items[itemName]
+                                    ActionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
+                                        TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
+                                        print('reward')
                                         FinishPicking()
                                     end, function() -- Cancel
-                                        QBCore.Functions.Notify(Lang:t("task.cancel_task"), "error")
+                                        lib.notify({
+                                            description = locale("task.cancel_task"),
+                                            type = "error"
+                                        })
                                         FinishPicking()
                                     end)
                                 else
-                                    QBCore.Functions.Notify(Lang:t("error.incorrect_vehicle"), "error")
+                                    lib.notify({
+                                        description = locale("error.incorrect_vehicle"),
+                                        type = "error"
+                                    })
                                 end
                             end
                             Wait(1)
@@ -201,37 +189,40 @@ local function LoadFarmZones(role, item, name)
                 else
                 end
             else
-                exports["qb-core"]:HideText()
+                lib.hideTextUI()
             end
         end)
     end
 end
 
-local function StartFarming(role, item, name)
-    local farmItem = Farms[role].items[name]
-    LoadFarmZones(role, farmItem, name)
+local function StartFarming(args)
+    playerFarm = args.farm
+    local itemName = args.itemName
+    local farmItem = playerFarm.config.items[itemName]
+    LoadFarmZones(itemName, farmItem)
     startFarm = true
-    farmingItem = name
+    farmingItem = itemName
     farmPoints = farmItem.points
     local amount = #farmPoints
     currentSequence = 0
-    QBCore.Functions.Notify(Lang:t("text.start_shift", {
-        item = item.label
-    }))
-    TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
-        issuer = role,
-        hook = "farm",
-        color = {
-            r = 255,
-            g = 255,
-            b = 0
-        },
-        title = "FARM - INICIADO",
-        description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
-            PlayerData.charinfo.lastname, QBCore.Shared.Items[name].label),
-        content = nil,
-        fields = nil
+    lib.notify({
+        description = locale("text.start_shift", Items[itemName].label),
+        type = "info"
     })
+    -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
+    --     issuer = group,
+    --     hook = "farm",
+    --     color = {
+    --         r = 255,
+    --         g = 255,
+    --         b = 0
+    --     },
+    --     title = "FARM - INICIADO",
+    --     description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
+    --         PlayerData.charinfo.lastname, QBCore.Shared.Items[itemName].label),
+    --     content = nil,
+    --     fields = nil
+    -- })
     local pickedFarms = 0
     while startFarm do
         if tasking then
@@ -239,24 +230,27 @@ local function StartFarming(role, item, name)
         else
             if pickedFarms >= amount then
                 startFarm = false
-                marker = nil
-                QBCore.Functions.Notify(Lang:t("text.end_shift"))
-                TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
-                    issuer = role,
-                    hook = "farm",
-                    color = {
-                        r = 255,
-                        g = 255,
-                        b = 0
-                    },
-                    title = "FARM - FINALIZADO",
-                    description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
-                        PlayerData.charinfo.lastname, QBCore.Shared.Items[name].label),
-                    content = nil,
-                    fields = nil
+                markerCoords = nil
+                lib.notify({
+                    description = locale("text.end_shift"),
+                    type = "info"
                 })
+                -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
+                --     issuer = group,
+                --     hook = "farm",
+                --     color = {
+                --         r = 255,
+                --         g = 255,
+                --         b = 0
+                --     },
+                --     title = "FARM - FINALIZADO",
+                --     description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
+                --         PlayerData.charinfo.lastname, QBCore.Shared.Items[name].label),
+                --     content = nil,
+                --     fields = nil
+                -- })
             else
-                nextTask(farmItem.random)
+                NextTask(farmItem.random)
                 pickedFarms = pickedFarms + 1
             end
         end
@@ -264,116 +258,7 @@ local function StartFarming(role, item, name)
     end
 end
 
-local function GetFarmMenu(name, role)
-    local menu = {{
-        isMenuHeader = true,
-        header = Lang:t("menus.farm_header_title", {
-            name = name
-        }),
-        icon = "fa-solid fa-briefcase"
-    }}
-
-    for name, item in pairs(Farms[role].items) do
-        local item = GetItem(name)
-        if (item == nil) then
-        else
-            menu[#menu + 1] = {
-                header = item.label,
-                txt = item.description,
-                icon = name,
-                disabled = startFarm,
-                params = {
-                    event = "mri_Qfarm:client:StartFarm",
-                    args = {
-                        role = role,
-                        item = item,
-                        name = name
-                    }
-                }
-            }
-        end
-    end
-
-    if (startFarm) then
-        local item = GetItem(farmingItem)
-        menu[#menu + 1] = {
-            header = Lang:t("menus.cancel_farm"),
-            icon = "fa-solid fa-ban",
-            txt = item.label,
-            params = {
-                event = "mri_Qfarm:client:StopFarm",
-                args = {
-                    role = role,
-                    name = farmingItem
-                }
-            }
-        }
-    end
-
-    menu[#menu + 1] = {
-        header = Lang:t('menus.close'),
-        txt = "",
-        params = {
-            event = "qb-menu:client:closeMenu"
-        }
-    }
-    return menu
-end
-
-local function LoadFarms()
-    for role, z in pairs(Farms) do
-        if ((role == PlayerJob.name) or (role == PlayerGang.name)) then
-            for _, loc in pairs(z.start.locations) do
-                farmZones[#farmZones + 1] = {
-                    IsInside = false,
-                    zone = BoxZone:Create(loc, z.start.length, z.start.width, {
-                        name = ("farm-%s"):format(z.name),
-                        minZ = loc.z - 1.0,
-                        maxZ = loc.z + 1.0,
-                        debugPoly = Config.Debug
-                    })
-                }
-            end
-        end
-    end
-
-    for _, zone in pairs(farmZones) do
-        zone.zone:onPlayerInOut(function(isPointInside)
-            zone.isInside = isPointInside
-            if isPointInside then
-                local jobCfg = Farms[PlayerJob.name]
-                local gangCfg = Farms[PlayerGang.name]
-                if jobCfg then
-                    exports["qb-menu"]:openMenu(GetFarmMenu(zone.zone.name, PlayerJob.name))
-                elseif gangCfg then
-                    exports["qb-menu"]:openMenu(GetFarmMenu(zone.zone.name, PlayerGang.name))
-                end
-            else
-                exports["qb-menu"]:closeMenu()
-            end
-        end)
-    end
-end
-
-CreateThread(function()
-    while (true) do
-        if (marker) then
-            local distance =
-                GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()), marker.x, marker.y, marker.z, true)
-            if (distance <= 30) then
-                DrawMarker(2, marker.x, marker.y, marker.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.3, 255, 255,
-                    0, 80, 0, 1, 2, 0)
-            end
-        end
-        Wait(0)
-    end
-end)
-
-RegisterNetEvent("mri_Qfarm:client:StartFarm", function(args)
-    StartFarming(args.role, args.item, args.name)
-end)
-
-RegisterNetEvent("mri_Qfarm:client:StopFarm", function(args)
+local function StopFarm()
     startFarm = false
     tasking = false
     lib.notify({
@@ -383,12 +268,8 @@ RegisterNetEvent("mri_Qfarm:client:StopFarm", function(args)
     for k, _ in pairs(farmPointZones) do
         farmPointZones[k].zone:destroy()
     end
-    if (Config.useTTCLibs) then
-        ttc.client.cleanBlips("gps", scriptName)
-    else
-        DeleteBlip(blip)
-    end
-    marker = nil
+    DeleteBlip(blip)
+    markerCoords = nil
     -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
     --     issuer = args.role,
     --     hook = "farm",
@@ -403,6 +284,98 @@ RegisterNetEvent("mri_Qfarm:client:StopFarm", function(args)
     --     content = nil,
     --     fields = nil
     -- })
+end
+
+local function ShowFarmMenu(farm, groupName)
+    local groups = Utils.GetBaseGroups(true)
+    local ctx = {
+        id = 'farm_menu',
+        title = farm.name,
+        icon = "fa-solid fa-briefcase",
+        description = groups[groupName].label,
+        options = {}
+    }
+    for itemName, _ in pairs(farm.config.items) do
+        local item = Items[itemName]
+        if not(item == nil) then
+            ctx.options[#ctx.options+1] = {
+                title = item.label,
+                description = item.description,
+                icon = string.format('%s/%s.png', ImageURL, item.name),
+                image = string.format('%s/%s.png', ImageURL, item.name),
+                metadata = Utils.GetItemMetadata(item),
+                disabled = startFarm,
+                onSelect = StartFarming,
+                args = {
+                    farm = farm,
+                    itemName = itemName
+                }
+            }
+        end
+    end
+
+    if (startFarm) then
+        local item = Items[farmingItem]
+        ctx.options[#ctx.options+1] = {
+            title = locale("menus.cancel_farm"),
+            icon = "fa-solid fa-ban",
+            description = item.label,
+            onSelect = StopFarm,
+            args = {
+                farm = farm,
+                itemName = farmingItem
+            }
+        }
+    end
+    lib.registerContext(ctx)
+    lib.showContext(ctx.id)
+end
+
+local function LoadFarms()
+    if #farmZones > 0 then
+        for k, _ in pairs(farmZones) do
+            farmZones[k].zone:destroy()
+        end
+    end
+    for _, v in pairs(Farms) do
+        if ((PlayerJob and v.group.name == PlayerJob.name) or (PlayerGang and v.group.name == PlayerGang.name)) then
+            local start = v.config.start
+            farmZones[#farmZones + 1] = {
+                IsInside = false,
+                zone = BoxZone:Create(start.location, start.length, start.width, {
+                    name = ("farm-%s"):format('start' .. _),
+                    minZ = start.location.z - 1.0,
+                    maxZ = start.location.z + 1.0,
+                    debugPoly = Config.Debug
+                }),
+                farm = v
+            }
+        end
+    end
+
+    for _, zone in pairs(farmZones) do
+        zone.zone:onPlayerInOut(function(isPointInside)
+            zone.isInside = isPointInside
+            if isPointInside then
+                if ((PlayerJob and zone.farm.group.name == PlayerJob.name) or (PlayerGang and zone.farm.group.name == PlayerGang.name)) then
+                    ShowFarmMenu(zone.farm, zone.farm.group.name)
+                end
+            end
+        end)
+    end
+end
+
+CreateThread(function()
+    while (true) do
+        if markerCoords then
+            local playerLoc = GetEntityCoords(PlayerPedId(-1))
+            if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y, markerCoords.z, true) <= 30 then
+                DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3,
+                    0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
+            end
+        end
+        Wait(0)
+    end
 end)
 
 AddEventHandler("onResourceStart", function(resourceName)
@@ -410,51 +383,36 @@ AddEventHandler("onResourceStart", function(resourceName)
         PlayerData = QBCore.Functions.GetPlayerData()
         PlayerJob = PlayerData.job
         PlayerGang = PlayerData.gang
-        -- LoadFarms()
-        -- if (Config.useTTCLibs) then
-        --     ttc.client.cleanBlips("gps", scriptName)
-        -- end
-        if Config.Debug then
-            print(string.format("Job: '%s'", PlayerJob.name))
-        end
-        if Config.Debug then
-            print(string.format("Gang: '%s'", PlayerGang.name))
-        end
+        LoadFarms()
     end
 end)
 
 RegisterNetEvent("QBCore:Client:OnPlayerLoaded", function()
-    -- if (Config.useTTCLibs) then
-    --     ttc.client.cleanBlips("gps", scriptName)
-    -- end
     PlayerData = QBCore.Functions.GetPlayerData()
     PlayerJob = PlayerData.job
     PlayerGang = PlayerData.gang
-    -- LoadFarms()
+    LoadFarms()
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
-    local role = nil
+    local group = nil
     if PlayerGang and PlayerGang.name then
-        role = PlayerGang.name
+        group = PlayerGang.name
     elseif (PlayerJob and PlayerJob.name) then
-        role = PlayerJob.name
+        group = PlayerJob.name
     end
-    if (role and farmingItem) then
-        TriggerEvent("mri_Qfarm:client:StopFarm", {role, farmingItem})
+
+    if (group and farmingItem) then
+        StopFarm({role, farmingItem})
     end
 end)
 
 RegisterNetEvent("QBCore:Client:OnJobUpdate", function(JobInfo)
     PlayerJob = JobInfo
-    if Config.Debug then
-        print(string.format("Job: '%s'", PlayerJob.name))
-    end
-end)
+    LoadFarms()
+ end)
 
 RegisterNetEvent("QBCore:Client:OnGangUpdate", function(GangInfo)
     PlayerGang = GangInfo
-    if Config.Debug then
-        print(string.format("Gang: '%s'", PlayerGang.name))
-    end
+    LoadFarms()
 end)
