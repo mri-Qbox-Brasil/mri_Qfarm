@@ -1,8 +1,11 @@
 local Utils = {}
 
-function Utils.GetPedCoords(uitext)
+function Utils.GetPedCoords()
     lib.hideTextUI()
-    lib.showTextUI(uitext, {
+    local text = {}
+    table.insert(text, locale('actions.choose_location.1'))
+    table.insert(text, locale('actions.choose_location.2'))
+    lib.showTextUI(table.concat(text), {
         position = 'right-center'
     })
 
@@ -10,24 +13,35 @@ function Utils.GetPedCoords(uitext)
         Wait(0)
         if IsControlJustReleased(0, 38) then
             lib.hideTextUI()
-            return 1
+            return {
+                result = 'choose',
+                coords = GetEntityCoords(cache.ped)
+            }
         end
         if IsControlJustReleased(0, 177) then
             lib.hideTextUI()
-            return 0
+            return {
+                result = 'cancel',
+                coords = nil
+            }
         end
         if IsControlJustPressed(0, 201) then
             lib.hideTextUI()
-            return 2
+            return {
+                result = 'end',
+                coords = nil
+            }
         end
     end
 end
 
 function Utils.TpToLoc(coords)
-    DoScreenFadeOut(500)
-    Wait(1000)
-    SetPedCoordsKeepVehicle(PlayerPedId(), coords.x, coords.y, coords.z)
-    DoScreenFadeIn(500)
+    if coords then
+        DoScreenFadeOut(500)
+        Wait(1000)
+        SetPedCoordsKeepVehicle(PlayerPedId(), coords.x, coords.y, coords.z)
+        DoScreenFadeIn(500)
+    end
 end
 
 function Utils.ConfirmationDialog(content)
@@ -122,6 +136,32 @@ function Utils.GetItemMetadata(item)
         label = locale('items.type'),
         value = item.type or locale('items.notype')
     }}
+end
+
+function Utils.GetMetadataFromFarm(key)
+    local data = {}
+    local items = Farms[key].config.items
+    for k, v in pairs(items) do
+        data[#data + 1] = {
+            label = locale('menus.route'),
+            value = string.format('%s (%s)', Items[k].label, k)
+        }
+    end
+    if #data <= 0 then
+        return {{
+            label = locale('menus.route'),
+            value = locale('menus.no_route')
+        }}
+    end
+    return data
+end
+
+function Utils.GetDefaultAnim()
+    if Config.UseUseEmoteMenu then
+        return defaultAnimCmd
+    else
+        return defaultAnim
+    end
 end
 
 return Utils

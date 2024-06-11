@@ -2,7 +2,7 @@ Farms = GlobalState.Farms or {}
 ColorScheme = GlobalState.UIColors or {}
 Items = exports.ox_inventory:Items()
 ImageURL = 'https://cfx-nui-ox_inventory/web/images'
-Utils = lib.require('client/utils')
+local Utils = lib.require('client/utils')
 
 local QBCore = exports["qb-core"]:GetCoreObject()
 
@@ -39,8 +39,8 @@ local blipSettings = {
     route = true,
     text = locale("misc.farm_point")
 }
-
-local defaultAnim = {
+defaultAnimCmd = 'bumbin'
+defaultAnim = {
     dict = "amb@prop_human_bum_bin@idle_a",
     anim = "idle_a",
     inSpeed = 6.0,
@@ -73,27 +73,24 @@ local function DeleteBlip(b)
     end
 end
 
-local function LoadAnim(dict)
-    while not HasAnimDictLoaded(dict) do
-        RequestAnimDict(dict)
-        Wait(1)
-    end
-end
-
-local function PickAnim(animation)
-    local anim = defaultAnim
-    if (animation) then
-        anim = animation
-    end
-    local ped = PlayerPedId()
-    LoadAnim(anim.dict)
-    TaskPlayAnim(ped, anim.dict, anim.anim, anim.inSpeed, anim.outSpeed, anim.duration, anim.flag, anim.rate, anim.x,
+local function PickAnim(anim)
+    print(json.encode(Config))
+    if Config.UseEmoteMenu then
+        ExecuteCommand(string.format('e %s', anim))
+    else
+        lib.requestAnimDict(anim.dict, 5000)
+        TaskPlayAnim(cache.ped, anim.dict, anim.anim, anim.inSpeed, anim.outSpeed, anim.duration, anim.flag, anim.rate, anim.x,
         anim.y, anim.z)
+    end
 end
 
 local function FinishPicking()
     tasking = false
-    ClearPedTasks(PlayerPedId())
+    if Config.UseUseEmoteMenu then
+        ExecuteCommand('e c')
+    else
+        ClearPedTasks(PlayerPedId())
+    end
     DeleteBlip(blip)
 end
 
@@ -129,6 +126,7 @@ end
 
 local function LoadFarmZones(itemName, item)
     for point, zone in pairs(item.points) do
+        zone = vector3(zone.x, zone.y, zone.z)
         local label = ("farmZone-%s-%s"):format(itemName, point)
         farmPointZones[point] = {
             isInside = false,
@@ -158,16 +156,21 @@ local function LoadFarmZones(itemName, item)
                                     currentSequence = currentPoint
                                     currentPoint = -1
                                     local duration = math.random(6000, 8000)
-                                    local animation = defaultAnim
+                                    local animation = nil
                                     if (item["animation"]) then
                                         animation = item.animation
+                                    else
+                                        if Config.UseUseEmoteMenu then
+                                            animation = defaultAnimCmd
+                                        else
+                                            animation = defaultAnim
+                                            animation["duration"] = duration
+                                        end
                                     end
-                                    animation["duration"] = duration
                                     PickAnim(animation)
                                     local item = Items[itemName]
                                     ActionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
                                         TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
-                                        print('reward')
                                         FinishPicking()
                                     end, function() -- Cancel
                                         lib.notify({
@@ -186,7 +189,6 @@ local function LoadFarmZones(itemName, item)
                             Wait(1)
                         end
                     end)
-                else
                 end
             else
                 lib.hideTextUI()
@@ -340,6 +342,7 @@ local function LoadFarms()
     for _, v in pairs(Farms) do
         if ((PlayerJob and v.group.name == PlayerJob.name) or (PlayerGang and v.group.name == PlayerGang.name)) then
             local start = v.config.start
+            start.location = vector3(start.location.x, start.location.y, start.location.z)
             farmZones[#farmZones + 1] = {
                 IsInside = false,
                 zone = BoxZone:Create(start.location, start.length, start.width, {
@@ -383,7 +386,6 @@ AddEventHandler("onResourceStart", function(resourceName)
         PlayerData = QBCore.Functions.GetPlayerData()
         PlayerJob = PlayerData.job
         PlayerGang = PlayerData.gang
-        LoadFarms()
     end
 end)
 
@@ -394,7 +396,7 @@ RegisterNetEvent("QBCore:Client:OnPlayerLoaded", function()
     LoadFarms()
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
+RegisterNetEvent("QBCore:Client:OnPlayerUnload", function()
     local group = nil
     if PlayerGang and PlayerGang.name then
         group = PlayerGang.name
@@ -403,7 +405,7 @@ RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
     end
 
     if (group and farmingItem) then
-        StopFarm({role, farmingItem})
+        StopFarm()
     end
 end)
 
@@ -414,5 +416,9 @@ RegisterNetEvent("QBCore:Client:OnJobUpdate", function(JobInfo)
 
 RegisterNetEvent("QBCore:Client:OnGangUpdate", function(GangInfo)
     PlayerGang = GangInfo
+    LoadFarms()
+end)
+
+RegisterNetEvent("mri_Qfarm:client:LoadFarms", function()
     LoadFarms()
 end)

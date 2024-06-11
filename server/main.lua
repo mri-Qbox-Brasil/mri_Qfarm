@@ -2,53 +2,21 @@ local QBCore = exports["qb-core"]:GetCoreObject()
 Farms = GlobalState.Farms or {}
 Items = exports.ox_inventory:Items()
 
-local TestZones = { -- remover isso quando finalizar o script
-    [1] = {
-        name = "Farm 1",
-        config = {
-            start = {
-                location = vector3(-1933.82, 2039.50, 140.83),
-                width = 0.6,
-                length = 0.6
-            },
-            items = {
-                steel = {
-                    min = 3,
-                    max = 7,
-                    randomRoute = false,
-                    points = {
-                        vector3(-1909.74, 2023.50, 140.84), vector3(-1909.64, 2019.05, 140.95),
-                        vector3(-1909.25, 2014.75, 141.13), vector3(-1909.30, 2010.76, 141.47)
-                    },
-                    animation = {
-                        dict = 'amb@prop_human_bum_bin@idle_a',
-                        anim = 'idle_a',
-                        inSpeed = 6.0,
-                        outSpeed = -6.0,
-                        duration = -1,
-                        flag = 47,
-                        rate = 0,
-                        x = 0,
-                        y = 0,
-                        z = 0
-                    }
-                }
-            }
-        },
-        group = {
-            name = "police",
-            grade = 0
-        }
-    }
-}
-
-function UpdateFarmZone(key, value)
-    FarmZones[key] = value
-    GlobalState:set('FarmZonesUpdate', {
-        key = key,
-        value = value
-    }, true)
-end
+local _SELECT_DATA = 'SELECT * FROM mri_qfarm'
+local _INSERT_DATA = 'INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)'
+local _UPDATE_DATA = 'UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmName = ?'
+local _DELETE_DATA = 'DELETE FROM mri_qfarm WHERE farmName = ?'
+local _CREATE_TABLE = [[
+    CREATE TABLE IF NOT EXISTS mri_qfarm (
+        farmName varchar(100) NOT NULL,
+        farmConfig LONGTEXT NULL,
+        farmGroup LONGTEXT NULL,
+        CONSTRAINT mri_qfarm_pk PRIMARY KEY (farmName)
+    )
+    ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_general_ci;
+]]
 
 local function ItemAdd(source, item, amount)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -100,13 +68,72 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
     end
 end)
 
-AddEventHandler('onServerResourceStart', function(resource)
-    if resource == GetCurrentResourceName() then
-        if not Config.Debug then
-            Farms = MySQL.query.await("SELECT * FROM mri_farms", {}) or {}
-        else
-            Farms = TestZones
+local function onSqlAction(source, response)
+    TriggerClientEvent('mri_qfarm:client:LoadFarms', -1)
+    TriggerClientEvent('ox_lib:notify', source, response)
+end
+
+RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm, index)
+    local source = source
+    local farmLocal = Farms[index]
+    local response = { type = 'success', description = 'Sucesso ao salvar!'}
+    if farmLocal then
+        exports.oxmysql:execute(_UPDATE_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group), farm.name}, function (result)
+            if result and result.affectedRows <= 0 then
+                response.type = 'error'
+                response.description = 'Erro ao salvar.'
+            end
+            Farms[index] = farm
+            onSqlAction(source, response)
+        end)
+    else
+        exports.oxmysql.insert_async(_INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)}, function (result)
+            if result and result.affectedRows <= 0 then
+                response.type = 'error'
+                response.description = 'Erro ao salvar.'
+            end
+            Farms[index] = farm
+            onSqlAction(source, response)
+        end)
+    end
+end)
+
+RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(key)
+    local response = { type = 'success', description = 'Farm excluído!'}
+    local farm = Farms[key]
+    print(key, json.encode(farm))
+    exports.oxmysql:execute(_DELETE_DATA, {farm.name}, function (result)
+        print(json.encode())
+        if result and result.affectedRows <= 0 then
+            response.type = 'error'
+            response.description = 'Erro ao excluir.'
         end
+        onSqlAction(source, response)
+    end)
+    Farms[key] = nil
+    GlobalState:set('Farms', Farms, true)
+    Wait(2000)
+    TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
+end)
+
+AddEventHandler('onResourceStart', function(resource)
+    if resource == GetCurrentResourceName() then
+        exports['mri_Qbox']:CreateTable(_CREATE_TABLE)
+        local result = exports.oxmysql:query_async(_SELECT_DATA, {})
+        local farms = {}
+        if result and #result > 0 then
+            for _, row in ipairs(result) do
+                local zone = {
+                    name = row.farmName,
+                    config = json.decode(row.farmConfig),
+                    group = json.decode(row.farmGroup)
+                }
+                farms[_] = zone
+            end
+        end
+        Farms = farms
         GlobalState:set('Farms', Farms, true)
+        Wait(2000)
+        TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
     end
 end)
