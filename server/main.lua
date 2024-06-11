@@ -26,6 +26,15 @@ local function ItemAdd(source, item, amount)
     end
 end
 
+local function dispatchEvents(source, response)
+    GlobalState:set('Farms', Farms, true)
+    Wait(2000)
+    TriggerClientEvent('mri_qfarm:client:LoadFarms', -1)
+    if response then
+        TriggerClientEvent('ox_lib:notify', source, response)
+    end
+end
+
 RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
     local src = source
     local cfg = nil
@@ -68,13 +77,7 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
     end
 end)
 
-local function onSqlAction(source, response)
-    TriggerClientEvent('mri_qfarm:client:LoadFarms', -1)
-    TriggerClientEvent('ox_lib:notify', source, response)
-end
-
 RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm, index)
-    local source = source
     local farmLocal = Farms[index]
     local response = { type = 'success', description = 'Sucesso ao salvar!'}
     if farmLocal then
@@ -84,7 +87,7 @@ RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm, index)
                 response.description = 'Erro ao salvar.'
             end
             Farms[index] = farm
-            onSqlAction(source, response)
+            dispatchEvents(source, response)
         end)
     else
         exports.oxmysql.insert_async(_INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)}, function (result)
@@ -93,7 +96,7 @@ RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm, index)
                 response.description = 'Erro ao salvar.'
             end
             Farms[index] = farm
-            onSqlAction(source, response)
+            dispatchEvents(source, response)
         end)
     end
 end)
@@ -101,19 +104,14 @@ end)
 RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(key)
     local response = { type = 'success', description = 'Farm excluído!'}
     local farm = Farms[key]
-    print(key, json.encode(farm))
     exports.oxmysql:execute(_DELETE_DATA, {farm.name}, function (result)
-        print(json.encode())
         if result and result.affectedRows <= 0 then
             response.type = 'error'
             response.description = 'Erro ao excluir.'
         end
-        onSqlAction(source, response)
+        Farms[key] = nil
+        dispatchEvents(source, response)
     end)
-    Farms[key] = nil
-    GlobalState:set('Farms', Farms, true)
-    Wait(2000)
-    TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
 end)
 
 AddEventHandler('onResourceStart', function(resource)
@@ -132,8 +130,6 @@ AddEventHandler('onResourceStart', function(resource)
             end
         end
         Farms = farms
-        GlobalState:set('Farms', Farms, true)
-        Wait(2000)
-        TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
+        dispatchEvents(source)
     end
 end)
