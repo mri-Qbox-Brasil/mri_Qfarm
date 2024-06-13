@@ -1,7 +1,7 @@
 Config = {}
 
-Config.Debug = true
-Config.UseTarget = true -- não implementado
+Config.Debug = false
+Config.UseTarget = true
 Config.UseEmoteMenu = true
 Config.IconAnimation = 'fade'
 Config.FarmBoxWidth = 0.8 -- só mexa se souber o que está fazendo

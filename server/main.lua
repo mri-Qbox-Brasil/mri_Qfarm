@@ -44,6 +44,7 @@ local function locateFarm(id)
 end
 
 RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
+    print('here')
     local src = source
     local cfg = nil
 
@@ -76,7 +77,7 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
         return
     end
 
-    local qtd = math.random(itemCfg.min, itemCfg.max)
+    local qtd = math.random(itemCfg.min or 0, itemCfg.max or 1)
     itemAdd(src, itemName, qtd)
     if (itemCfg['extraItems']) then
         for name, config in pairs(itemCfg.extraItems) do

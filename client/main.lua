@@ -22,8 +22,10 @@ local farmingItem = nil
 local playerFarm = nil
 
 local farmZones = {}
+local farmTargets = {}
 local farmPoints = {}
 local farmPointZones = {}
+local farmPointTargets = {}
 local defaultBlipColor = 5
 
 local blipSettings = {
@@ -123,76 +125,100 @@ local function nextTask(shuffle)
     blip = createBlip(blipSettings)
 end
 
+local function checkAndOpenPoint(point, itemName, item)
+    if not IsPedInAnyVehicle(PlayerPedId(), false) and (Config.UseTarget or IsControlJustReleased(0, 38)) then
+        if ((playerFarm and playerFarm.config["car"] == nil) or
+            IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
+                GetHashKey(playerFarm.config["car"].model))) then
+            lib.hideTextUI()
+            if Config.UseTarget then
+                exports.ox_target:removeZone(farmPointTargets[point])
+            else
+                farmPointZones[point].zone:destroy()
+            end
+            currentSequence = currentPoint
+            currentPoint = -1
+            local duration = math.random(6000, 8000)
+            local animation = nil
+            if (item["animation"]) then
+                animation = item.animation
+            else
+                if Config.UseUseEmoteMenu then
+                    animation = DefaultAnimCmd
+                else
+                    animation = DefaultAnim
+                    animation["duration"] = duration
+                end
+            end
+            pickAnim(animation)
+            local item = Items[itemName]
+            actionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
+                TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
+                finishPicking()
+            end, function() -- Cancel
+                lib.notify({
+                    description = locale("task.cancel_task"),
+                    type = "error"
+                })
+                finishPicking()
+            end)
+        else
+            lib.notify({
+                description = locale("error.incorrect_vehicle"),
+                type = "error"
+            })
+        end
+    end
+end
+
 local function loadFarmZones(itemName, item)
     for point, zone in pairs(item.points) do
         zone = vector3(zone.x, zone.y, zone.z)
         local label = ("farmZone-%s-%s"):format(itemName, point)
-        farmPointZones[point] = {
-            isInside = false,
-            zone = BoxZone:Create(zone, 0.6, 0.6, {
-                name = label,
-                minZ = zone.z - 1.0,
-                maxZ = zone.z + 1.0,
-                debugPoly = Config.Debug
+        if Config.UseTarget then
+            farmPointTargets[point] = exports.ox_target:addSphereZone({
+                coords = zone,
+                options = {
+                    name = label,
+                    icon = "fa-solid fa-screwdriver-wrench",
+                    label = "Coletar",
+                    onSelect = function()
+                        checkAndOpenPoint(point, itemName, item)
+                    end
+                }
             })
-        }
+        else
+            farmPointZones[point] = {
+                isInside = false,
+                zone = BoxZone:Create(zone, 0.6, 0.6, {
+                    name = label,
+                    minZ = zone.z - 1.0,
+                    maxZ = zone.z + 1.0,
+                    debugPoly = Config.Debug
+                })
+            }
+        end
 
-        farmPointZones[point].zone:onPlayerInOut(function(isPointInside)
-            farmPointZones[point].isInside = isPointInside
-            if farmPointZones[point].isInside then
-                if point == currentPoint then
-                    CreateThread(function()
-                        while farmPointZones[point].isInside and point == currentPoint do
-                            lib.showTextUI(locale("task.start_task"), {
-                                position = 'right-center'
-                            })
-                            if not IsPedInAnyVehicle(PlayerPedId(), false) and IsControlJustReleased(0, 38) then
-                                if ((playerFarm and playerFarm.config["car"] == nil) or
-                                    IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
-                                        GetHashKey(playerFarm.config["car"].model))) then
-                                    lib.hideTextUI()
-                                    farmPointZones[point].zone:destroy()
-                                    currentSequence = currentPoint
-                                    currentPoint = -1
-                                    local duration = math.random(6000, 8000)
-                                    local animation = nil
-                                    if (item["animation"]) then
-                                        animation = item.animation
-                                    else
-                                        if Config.UseUseEmoteMenu then
-                                            animation = DefaultAnimCmd
-                                        else
-                                            animation = DefaultAnim
-                                            animation["duration"] = duration
-                                        end
-                                    end
-                                    pickAnim(animation)
-                                    local item = Items[itemName]
-                                    actionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
-                                        TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
-                                        finishPicking()
-                                    end, function() -- Cancel
-                                        lib.notify({
-                                            description = locale("task.cancel_task"),
-                                            type = "error"
-                                        })
-                                        finishPicking()
-                                    end)
-                                else
-                                    lib.notify({
-                                        description = locale("error.incorrect_vehicle"),
-                                        type = "error"
-                                    })
-                                end
+        if not Config.UseTarget then
+            farmPointZones[point].zone:onPlayerInOut(function(isPointInside)
+                farmPointZones[point].isInside = isPointInside
+                if farmPointZones[point].isInside then
+                    if point == currentPoint then
+                        CreateThread(function()
+                            while farmPointZones[point].isInside and point == currentPoint do
+                                lib.showTextUI(locale("task.start_task"), {
+                                    position = 'right-center'
+                                })
+                                checkAndOpenPoint(point, itemName, item)
+                                Wait(1)
                             end
-                            Wait(1)
-                        end
-                    end)
+                        end)
+                    end
+                else
+                    lib.hideTextUI()
                 end
-            else
-                lib.hideTextUI()
-            end
-        end)
+            end)
+        end
     end
 end
 
@@ -290,38 +316,67 @@ local function showFarmMenu(farm, groupName)
     lib.showContext(ctx.id)
 end
 
-local function loadFarms()
-    if #farmZones > 0 then
-        for k, _ in pairs(farmZones) do
-            farmZones[k].zone:destroy()
+local function checkAndOpen(farm)
+    if ((PlayerJob and farm.group.name == PlayerJob.name) or (PlayerGang and farm.group.name == PlayerGang.name)) then
+        showFarmMenu(farm, farm.group.name)
+    end
+end
+
+local function emptyTargetZones(table, type)
+    if #table > 0 then
+        for k, _ in pairs(table) do
+            if type == 'zone' then
+                table[k].zone:destroy()
+            else
+                exports.ox_target:removeZone(table[k])
+            end
         end
     end
-    for _, v in pairs(Farms) do
+end
+
+local function loadFarms()
+    emptyTargetZones(farmZones, 'zone')
+    emptyTargetZones(farmTargets, 'target')
+    for k, v in pairs(Farms) do
         if ((PlayerJob and v.group.name == PlayerJob.name) or (PlayerGang and v.group.name == PlayerGang.name)) then
             local start = v.config.start
             start.location = vector3(start.location.x, start.location.y, start.location.z)
-            farmZones[#farmZones + 1] = {
-                IsInside = false,
-                zone = BoxZone:Create(start.location, start.length, start.width, {
-                    name = ("farm-%s"):format('start' .. _),
-                    minZ = start.location.z - 1.0,
-                    maxZ = start.location.z + 1.0,
-                    debugPoly = Config.Debug
-                }),
-                farm = v
-            }
+            if Config.UseTarget then
+                farmTargets[k] = exports.ox_target:addSphereZone({
+                    coords = start.location,
+                    options = {
+                        name = ("farm-%s"):format('start' .. k),
+                        icon = "fa-solid fa-screwdriver-wrench",
+                        label = string.format("Abrir %s", v.name),
+                        onSelect = function()
+                            checkAndOpen(v)
+                        end
+                    }
+                })
+            else
+                farmZones[#farmZones + 1] = {
+                    IsInside = false,
+                    zone = BoxZone:Create(start.location, start.length, start.width, {
+                        name = ("farm-%s"):format('start' .. _),
+                        minZ = start.location.z - 1.0,
+                        maxZ = start.location.z + 1.0,
+                        debugPoly = Config.Debug
+                    }),
+                    farm = v
+                }
+            end
         end
     end
 
-    for _, zone in pairs(farmZones) do
-        zone.zone:onPlayerInOut(function(isPointInside)
-            zone.isInside = isPointInside
-            if isPointInside then
-                if ((PlayerJob and zone.farm.group.name == PlayerJob.name) or (PlayerGang and zone.farm.group.name == PlayerGang.name)) then
-                    showFarmMenu(zone.farm, zone.farm.group.name)
+    if not Config.UseTarget then
+        for _, zone in pairs(farmZones) do
+            zone.zone:onPlayerInOut(function(isPointInside)
+                zone.isInside = isPointInside
+                if isPointInside then
+                    checkAndOpen(zone.farm)
                 end
-            end
-        end)
+            end)
+        end
     end
 end
 
