@@ -2,16 +2,16 @@ local QBCore = exports["qb-core"]:GetCoreObject()
 Farms = GlobalState.Farms or {}
 Items = exports.ox_inventory:Items()
 
-local _SELECT_DATA = 'SELECT * FROM mri_qfarm'
-local _INSERT_DATA = 'INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)'
-local _UPDATE_DATA = 'UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmName = ?'
-local _DELETE_DATA = 'DELETE FROM mri_qfarm WHERE farmName = ?'
-local _CREATE_TABLE = [[
+local SELECT_DATA = 'SELECT * FROM mri_qfarm'
+local INSERT_DATA = 'INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)'
+local UPDATE_DATA = 'UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?'
+local DELETE_DATA = 'DELETE FROM mri_qfarm WHERE farmId = ?'
+local CREATE_TABLE = [[
     CREATE TABLE IF NOT EXISTS mri_qfarm (
-        farmName varchar(100) NOT NULL,
+        farmId BIGINT AUTO_INCREMENT PRIMARY KEY,
+        farmName VARCHAR(100) NOT NULL UNIQUE,
         farmConfig LONGTEXT NULL,
-        farmGroup LONGTEXT NULL,
-        CONSTRAINT mri_qfarm_pk PRIMARY KEY (farmName)
+        farmGroup LONGTEXT NULL
     )
     ENGINE=InnoDB
     DEFAULT CHARSET=utf8mb4
@@ -29,9 +29,17 @@ end
 local function dispatchEvents(source, response)
     GlobalState:set('Farms', Farms, true)
     Wait(2000)
-    TriggerClientEvent('mri_qfarm:client:LoadFarms', -1)
+    TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
     if response then
         TriggerClientEvent('ox_lib:notify', source, response)
+    end
+end
+
+local function locateFarm(id)
+    for k, v in pairs(Farms) do
+        if v.farmId == id then
+            return k
+        end
     end
 end
 
@@ -77,51 +85,59 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
     end
 end)
 
-RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm, index)
-    local farmLocal = Farms[index]
+RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
+    local source = source
     local response = { type = 'success', description = 'Sucesso ao salvar!'}
-    if farmLocal then
-        exports.oxmysql:execute(_UPDATE_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group), farm.name}, function (result)
-            if result and result.affectedRows <= 0 then
-                response.type = 'error'
-                response.description = 'Erro ao salvar.'
-            end
-            Farms[index] = farm
-            dispatchEvents(source, response)
-        end)
+    print(json.encode(farm))
+    if farm.farmId then
+        print('update')
+        local affectedRows = MySQL.Sync.execute(UPDATE_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId})
+        if affectedRows <= 0 then
+            response.type = 'error'
+            response.description = 'Erro ao salvar.'
+        end
+        Farms[locateFarm(farm.farmId)] = farm
+        dispatchEvents(source, response)
     else
-        exports.oxmysql.insert_async(_INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)}, function (result)
-            if result and result.affectedRows <= 0 then
-                response.type = 'error'
-                response.description = 'Erro ao salvar.'
-            end
-            Farms[index] = farm
-            dispatchEvents(source, response)
-        end)
+        print('insert')
+        local farmId = MySQL.Sync.insert(INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)})
+        if farmId <= 0 then
+            response.type = 'error'
+            response.description = 'Erro ao salvar.'
+        else
+            farm.farmId = farmId
+            Farms[#Farms + 1] = farm
+        end
+        dispatchEvents(source, response)
     end
 end)
 
-RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(key)
+RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(farmId)
+    local source = source
     local response = { type = 'success', description = 'Farm excluído!'}
-    local farm = Farms[key]
-    exports.oxmysql:execute(_DELETE_DATA, {farm.name}, function (result)
-        if result and result.affectedRows <= 0 then
-            response.type = 'error'
-            response.description = 'Erro ao excluir.'
-        end
-        Farms[key] = nil
-        dispatchEvents(source, response)
-    end)
+    if not farmId then
+        TriggerClientEvent('ox_lib:notify', source, response)
+        return
+    end
+    local affectedRows = MySQL.Sync.execute(DELETE_DATA, {farmId})
+    if affectedRows <= 0 then
+        response.type = 'error'
+        response.description = 'Erro ao excluir.'
+    end
+    Farms[locateFarm(farmId)] = nil
+    dispatchEvents(source, response)
 end)
 
 AddEventHandler('onResourceStart', function(resource)
     if resource == GetCurrentResourceName() then
-        exports['mri_Qbox']:CreateTable(_CREATE_TABLE)
-        local result = exports.oxmysql:query_async(_SELECT_DATA, {})
+        MySQL.Async.execute(CREATE_TABLE)
+        local result = MySQL.Sync.fetchAll(SELECT_DATA, {})
         local farms = {}
         if result and #result > 0 then
+            print('>0')
             for _, row in ipairs(result) do
                 local zone = {
+                    farmId = row.farmId,
                     name = row.farmName,
                     config = json.decode(row.farmConfig),
                     group = json.decode(row.farmGroup)

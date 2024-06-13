@@ -74,7 +74,6 @@ local function DeleteBlip(b)
 end
 
 local function PickAnim(anim)
-    print(json.encode(Config))
     if Config.UseEmoteMenu then
         ExecuteCommand(string.format('e %s', anim))
     else
@@ -420,5 +419,6 @@ RegisterNetEvent("QBCore:Client:OnGangUpdate", function(GangInfo)
 end)
 
 RegisterNetEvent("mri_Qfarm:client:LoadFarms", function()
+    Farms = GlobalState.Farms or {}
     LoadFarms()
 end)

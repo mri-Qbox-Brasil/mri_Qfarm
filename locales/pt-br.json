@@ -9,6 +9,7 @@
     "actions.choose_location.1": "[E] Escolher local  \n",
     "actions.choose_location.2": "[BACKSPACE] Cancelar/Finalizar",
     "actions.farm.title": "Farm",
+    "actions.farm.description_title": "Farms cadastrados: %s",
     "actions.farm.create": "Criar farm",
     "actions.farm.description_create": "Crei um farm novo.",
     "actions.farm.list": "Ver lista",

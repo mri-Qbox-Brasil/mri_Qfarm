@@ -32,9 +32,10 @@ local function Delete(caption, tableObj, key)
 end
 
 local function DeleteFarm(args)
+    local farm = Farms[args.key]
     local result = Delete(locale('actions.confirmation_description', locale('actions.farm'), Farms[args.key].name), Farms, args.key)
     if result then
-        TriggerServerEvent('mri_Qfarm:server:DeleteFarm', args.key)
+        TriggerServerEvent('mri_Qfarm:server:DeleteFarm', farm.farmId)
         args.callback()
     else
         args.callbackCancel(args.key)
@@ -593,8 +594,11 @@ local function ActionMenu(key)
     local groupName = 'Sem grupo'
     local grade = '0'
     local groups = Utils.GetBaseGroups(true)
+    local disableGradeSet = false
     if farm.group['name'] then
         groupName = groups[farm.group.name].label
+    else
+        disableGradeSet = true
     end
     if farm.group['grade'] then
         grade = farm.group['grade']
@@ -634,6 +638,7 @@ local function ActionMenu(key)
             icon = 'list-ol',
             iconAnimation = Config.IconAnimation,
             onSelect = SetFarmGrade,
+            disabled = disableGradeSet,
             args = {
                 key = key,
                 callback = ActionMenu
@@ -711,6 +716,7 @@ function ListFarm()
         id = 'list_farms',
         menu = 'menu_farm',
         title = 'Listar Farms',
+        description = locale('actions.farm.description_title', #Farms),
         options = {}
     }
     for k, v in pairs(Farms) do
@@ -741,6 +747,7 @@ local function ManageFarms()
         id = 'menu_farm',
         menu = 'menu_gerencial',
         title = locale('actions.farm.title'),
+        description = locale('actions.farm.description_title', #Farms),
         options = {{
             title = locale('actions.farm.create'),
             description = locale('actions.farm.description_create'),

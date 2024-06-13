@@ -100,15 +100,17 @@ function Utils.GetBaseGroups(named)
         end
     end
     for k, v in pairs(gangs) do
-        local data = {
-            value = k,
-            label = v.label,
-            grades = Utils.GetGroupGrades(v)
-        }
-        if named then
-            groups[k] = data
-        else
-            groups[#groups + 1] = data
+        if not (k == 'none') then
+            local data = {
+                value = k,
+                label = v.label,
+                grades = Utils.GetGroupGrades(v)
+            }
+            if named then
+                groups[k] = data
+            else
+                groups[#groups + 1] = data
+            end
         end
     end
     return groups
