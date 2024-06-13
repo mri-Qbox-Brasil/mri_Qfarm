@@ -39,8 +39,8 @@ local blipSettings = {
     route = true,
     text = locale("misc.farm_point")
 }
-defaultAnimCmd = 'bumbin'
-defaultAnim = {
+DefaultAnimCmd = 'bumbin'
+DefaultAnim = {
     dict = "amb@prop_human_bum_bin@idle_a",
     anim = "idle_a",
     inSpeed = 6.0,
@@ -53,7 +53,7 @@ defaultAnim = {
     z = 0
 }
 
-local function CreateBlip(data)
+local function createBlip(data)
     local coordenadas = data.coordenadas
     local b = AddBlipForCoord(coordenadas.x, coordenadas.y, coordenadas.z)
     SetBlipSprite(b, data.sprite)
@@ -67,13 +67,13 @@ local function CreateBlip(data)
     return b
 end
 
-local function DeleteBlip(b)
+local function deleteBlip(b)
     if DoesBlipExist(b) then
         RemoveBlip(b)
     end
 end
 
-local function PickAnim(anim)
+local function pickAnim(anim)
     if Config.UseEmoteMenu then
         ExecuteCommand(string.format('e %s', anim))
     else
@@ -83,17 +83,17 @@ local function PickAnim(anim)
     end
 end
 
-local function FinishPicking()
+local function finishPicking()
     tasking = false
     if Config.UseUseEmoteMenu then
         ExecuteCommand('e c')
     else
         ClearPedTasks(PlayerPedId())
     end
-    DeleteBlip(blip)
+    deleteBlip(blip)
 end
 
-local function ActionProcess(name, description, duration, done, cancel)
+local function actionProcess(name, description, duration, done, cancel)
     QBCore.Functions.Progressbar("pick_" .. name, description, duration, false, true, {
         disableMovement = true,
         disableCarMovement = true,
@@ -102,7 +102,7 @@ local function ActionProcess(name, description, duration, done, cancel)
     }, nil, nil, nil, done, cancel)
 end
 
-local function NextTask(shuffle)
+local function nextTask(shuffle)
     if tasking then
         return
     end
@@ -120,10 +120,10 @@ local function NextTask(shuffle)
     blipSettings.coordenadas = markerCoords
     blipSettings.text = locale("misc.farm_point")
     blipSettings.sprite = 465
-    blip = CreateBlip(blipSettings)
+    blip = createBlip(blipSettings)
 end
 
-local function LoadFarmZones(itemName, item)
+local function loadFarmZones(itemName, item)
     for point, zone in pairs(item.points) do
         zone = vector3(zone.x, zone.y, zone.z)
         local label = ("farmZone-%s-%s"):format(itemName, point)
@@ -146,7 +146,7 @@ local function LoadFarmZones(itemName, item)
                             lib.showTextUI(locale("task.start_task"), {
                                 position = 'right-center'
                             })
-                            if not IsPedInAnyVehicle(PlayerPedId()) and IsControlJustReleased(0, 38) then
+                            if not IsPedInAnyVehicle(PlayerPedId(), false) and IsControlJustReleased(0, 38) then
                                 if ((playerFarm and playerFarm.config["car"] == nil) or
                                     IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
                                         GetHashKey(playerFarm.config["car"].model))) then
@@ -160,23 +160,23 @@ local function LoadFarmZones(itemName, item)
                                         animation = item.animation
                                     else
                                         if Config.UseUseEmoteMenu then
-                                            animation = defaultAnimCmd
+                                            animation = DefaultAnimCmd
                                         else
-                                            animation = defaultAnim
+                                            animation = DefaultAnim
                                             animation["duration"] = duration
                                         end
                                     end
-                                    PickAnim(animation)
+                                    pickAnim(animation)
                                     local item = Items[itemName]
-                                    ActionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
+                                    actionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
                                         TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
-                                        FinishPicking()
+                                        finishPicking()
                                     end, function() -- Cancel
                                         lib.notify({
                                             description = locale("task.cancel_task"),
                                             type = "error"
                                         })
-                                        FinishPicking()
+                                        finishPicking()
                                     end)
                                 else
                                     lib.notify({
@@ -196,11 +196,11 @@ local function LoadFarmZones(itemName, item)
     end
 end
 
-local function StartFarming(args)
+local function startFarming(args)
     playerFarm = args.farm
     local itemName = args.itemName
     local farmItem = playerFarm.config.items[itemName]
-    LoadFarmZones(itemName, farmItem)
+    loadFarmZones(itemName, farmItem)
     startFarm = true
     farmingItem = itemName
     farmPoints = farmItem.points
@@ -210,20 +210,6 @@ local function StartFarming(args)
         description = locale("text.start_shift", Items[itemName].label),
         type = "info"
     })
-    -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
-    --     issuer = group,
-    --     hook = "farm",
-    --     color = {
-    --         r = 255,
-    --         g = 255,
-    --         b = 0
-    --     },
-    --     title = "FARM - INICIADO",
-    --     description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
-    --         PlayerData.charinfo.lastname, QBCore.Shared.Items[itemName].label),
-    --     content = nil,
-    --     fields = nil
-    -- })
     local pickedFarms = 0
     while startFarm do
         if tasking then
@@ -236,22 +222,8 @@ local function StartFarming(args)
                     description = locale("text.end_shift"),
                     type = "info"
                 })
-                -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
-                --     issuer = group,
-                --     hook = "farm",
-                --     color = {
-                --         r = 255,
-                --         g = 255,
-                --         b = 0
-                --     },
-                --     title = "FARM - FINALIZADO",
-                --     description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
-                --         PlayerData.charinfo.lastname, QBCore.Shared.Items[name].label),
-                --     content = nil,
-                --     fields = nil
-                -- })
             else
-                NextTask(farmItem.random)
+                nextTask(farmItem.random)
                 pickedFarms = pickedFarms + 1
             end
         end
@@ -259,7 +231,7 @@ local function StartFarming(args)
     end
 end
 
-local function StopFarm()
+local function stopFarm()
     startFarm = false
     tasking = false
     lib.notify({
@@ -269,25 +241,11 @@ local function StopFarm()
     for k, _ in pairs(farmPointZones) do
         farmPointZones[k].zone:destroy()
     end
-    DeleteBlip(blip)
+    deleteBlip(blip)
     markerCoords = nil
-    -- TriggerServerEvent("ttc-smallresources:Server:SendWebhook", {
-    --     issuer = args.role,
-    --     hook = "farm",
-    --     color = {
-    --         r = 255,
-    --         g = 255,
-    --         b = 0
-    --     },
-    --     title = "FARM - CANCELADO",
-    --     description = string.format("**Membro:** %s %s\n**Item:** %s", PlayerData.charinfo.firstname,
-    --         PlayerData.charinfo.lastname, QBCore.Shared.Items[args.name].label),
-    --     content = nil,
-    --     fields = nil
-    -- })
 end
 
-local function ShowFarmMenu(farm, groupName)
+local function showFarmMenu(farm, groupName)
     local groups = Utils.GetBaseGroups(true)
     local ctx = {
         id = 'farm_menu',
@@ -306,7 +264,7 @@ local function ShowFarmMenu(farm, groupName)
                 image = string.format('%s/%s.png', ImageURL, item.name),
                 metadata = Utils.GetItemMetadata(item),
                 disabled = startFarm,
-                onSelect = StartFarming,
+                onSelect = startFarming,
                 args = {
                     farm = farm,
                     itemName = itemName
@@ -332,7 +290,7 @@ local function ShowFarmMenu(farm, groupName)
     lib.showContext(ctx.id)
 end
 
-local function LoadFarms()
+local function loadFarms()
     if #farmZones > 0 then
         for k, _ in pairs(farmZones) do
             farmZones[k].zone:destroy()
@@ -360,7 +318,7 @@ local function LoadFarms()
             zone.isInside = isPointInside
             if isPointInside then
                 if ((PlayerJob and zone.farm.group.name == PlayerJob.name) or (PlayerGang and zone.farm.group.name == PlayerGang.name)) then
-                    ShowFarmMenu(zone.farm, zone.farm.group.name)
+                    showFarmMenu(zone.farm, zone.farm.group.name)
                 end
             end
         end)
@@ -370,7 +328,7 @@ end
 CreateThread(function()
     while (true) do
         if markerCoords then
-            local playerLoc = GetEntityCoords(PlayerPedId(-1))
+            local playerLoc = GetEntityCoords(cache.ped)
             if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y, markerCoords.z, true) <= 30 then
                 DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3,
                     0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
@@ -392,7 +350,7 @@ RegisterNetEvent("QBCore:Client:OnPlayerLoaded", function()
     PlayerData = QBCore.Functions.GetPlayerData()
     PlayerJob = PlayerData.job
     PlayerGang = PlayerData.gang
-    LoadFarms()
+    loadFarms()
 end)
 
 RegisterNetEvent("QBCore:Client:OnPlayerUnload", function()
@@ -404,21 +362,21 @@ RegisterNetEvent("QBCore:Client:OnPlayerUnload", function()
     end
 
     if (group and farmingItem) then
-        StopFarm()
+        stopFarm()
     end
 end)
 
 RegisterNetEvent("QBCore:Client:OnJobUpdate", function(JobInfo)
     PlayerJob = JobInfo
-    LoadFarms()
+    loadFarms()
  end)
 
 RegisterNetEvent("QBCore:Client:OnGangUpdate", function(GangInfo)
     PlayerGang = GangInfo
-    LoadFarms()
+    loadFarms()
 end)
 
 RegisterNetEvent("mri_Qfarm:client:LoadFarms", function()
     Farms = GlobalState.Farms or {}
-    LoadFarms()
+    loadFarms()
 end)

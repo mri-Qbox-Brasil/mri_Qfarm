@@ -160,9 +160,9 @@ end
 
 function Utils.GetDefaultAnim()
     if Config.UseUseEmoteMenu then
-        return defaultAnimCmd
+        return DefaultAnimCmd
     else
-        return defaultAnim
+        return DefaultAnim
     end
 end
 

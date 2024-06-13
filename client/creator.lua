@@ -23,7 +23,7 @@ local newItem = {
     animation = Utils.GetDefaultAnim()
 }
 
-local function Delete(caption, tableObj, key)
+local function delete(caption, tableObj, key)
     if Utils.ConfirmationDialog(caption) == 'confirm' then
         tableObj[key] = nil
         return true
@@ -31,9 +31,9 @@ local function Delete(caption, tableObj, key)
     return false
 end
 
-local function DeleteFarm(args)
+local function deleteFarm(args)
     local farm = Farms[args.key]
-    local result = Delete(locale('actions.confirmation_description', locale('actions.farm'), Farms[args.key].name), Farms, args.key)
+    local result = delete(locale('actions.confirmation_description', locale('actions.farm'), Farms[args.key].name), Farms, args.key)
     if result then
         TriggerServerEvent('mri_Qfarm:server:DeleteFarm', farm.farmId)
         args.callback()
@@ -42,8 +42,8 @@ local function DeleteFarm(args)
     end
 end
 
-local function DeleteItem(args)
-    local result = Delete(locale('actions.confirmation_description', locale('actions.item'), Items[args.itemKey].label),
+local function deleteItem(args)
+    local result = delete(locale('actions.confirmation_description', locale('actions.item'), Items[args.itemKey].label),
         Farms[args.farmKey].config.items, args.itemKey)
     if result then
         args.callback({
@@ -57,8 +57,8 @@ local function DeleteItem(args)
     end
 end
 
-local function DeletePoint(args)
-    local result = Delete(locale('actions.confirmation_description', locale('actions.point'), args.name),
+local function deletePoint(args)
+    local result = delete(locale('actions.confirmation_description', locale('actions.point'), args.name),
         Farms[args.farmKey].config.items[args.itemKey].points, args.pointKey)
     args.callback({
         farmKey = args.farmKey,
@@ -66,7 +66,7 @@ local function DeletePoint(args)
     })
 end
 
-local function ExportFarm(args)
+local function exportFarm(args)
     lib.setClipboard(json.encode(Farms[args.key], {indent = true}))
     lib.notify({
         type = "success",
@@ -75,7 +75,7 @@ local function ExportFarm(args)
     args.callback(args.key)
 end
 
-local function ChangeFarmLocation(args)
+local function changeFarmLocation(args)
     local location = nil
     local result = Utils.GetPedCoords()
     if result.result == 'choose' then
@@ -95,7 +95,7 @@ local function ChangeFarmLocation(args)
     args.callback(args.key)
 end
 
-local function ChangePointLocation(args)
+local function changePointLocation(args)
     local location = nil
     local result = Utils.GetPedCoords()
     if result.result == 'choose' then
@@ -115,7 +115,7 @@ local function ChangePointLocation(args)
     })
 end
 
-local function SetFarmName(args)
+local function setFarmName(args)
     local key = nil
     if args and args.key then
         key = args.key
@@ -145,7 +145,7 @@ local function SetFarmName(args)
     args.callback(key)
 end
 
-local function SetFarmGroup(args)
+local function setFarmGroup(args)
     local key = args.key
     local farm = Farms[key]
     local input = lib.inputDialog(title, {{
@@ -164,12 +164,12 @@ local function SetFarmGroup(args)
     args.callback(key)
 end
 
-local function TeleportToFarm(args)
+local function teleportToFarm(args)
     Utils.TpToLoc(Farms[args.key].config.start.location)
     args.callback(args.key)
 end
 
-local function TeleportToPoint(args)
+local function teleportToPoint(args)
     Utils.TpToLoc(Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
     args.callback({
         farmKey = args.farmKey,
@@ -178,7 +178,7 @@ local function TeleportToPoint(args)
     })
 end
 
-local function SetFarmGrade(args)
+local function setFarmGrade(args)
     local key = args.key
     local farm = Farms[key]
     local input = lib.inputDialog(title, {{
@@ -197,7 +197,7 @@ local function SetFarmGrade(args)
     args.callback(key)
 end
 
-local function SetItem(args)
+local function setItem(args)
     local farm = Farms[args.farmKey]
     local input = lib.inputDialog(locale('actions.item.change'), {{
         type = 'select',
@@ -222,7 +222,7 @@ local function SetItem(args)
     args.callback({key = args.farmKey})
 end
 
-local function SetMinMax(args)
+local function setMinMax(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local input = lib.inputDialog(locale('actions.item.minmax'), {{
         type = 'number',
@@ -247,7 +247,7 @@ local function SetMinMax(args)
     })
 end
 
-local function SetRandom(args)
+local function setRandom(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local input = lib.inputDialog(locale('actions.item.random'), {{
         type = 'checkbox',
@@ -264,7 +264,7 @@ local function SetRandom(args)
     })
 end
 
-local function SetAnimation(args)
+local function setAnimation(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     if Config.UseEmoteMenu then
         local input = lib.inputDialog(locale('actions.item.animation'), {{
@@ -351,7 +351,7 @@ local function SetAnimation(args)
     })
 end
 
-local function PointMenu(args)
+local function pointMenu(args)
     local ctx = {
         id = 'point_item',
         menu = 'list_points',
@@ -362,24 +362,24 @@ local function PointMenu(args)
             description = locale('actinos.point.description_change_location'),
             icon = 'location-dot',
             iconAnimation = Config.IconAnimation,
-            onSelect = ChangePointLocation,
+            onSelect = changePointLocation,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
                 pointKey = args.pointKey,
-                callback = PointMenu
+                callback = pointMenu
             }
         }, {
             title = locale('actions.teleport'),
             description = locale('actions.description_teleport'),
             icon = 'location-dot',
             iconAnimation = Config.IconAnimation,
-            onSelect = TeleportToPoint,
+            onSelect = teleportToPoint,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
                 pointKey = args.pointKey,
-                callback = PointMenu
+                callback = pointMenu
             }
         }, {
             title = locale('actions.delete'),
@@ -387,13 +387,13 @@ local function PointMenu(args)
             icon = 'trash',
             iconAnimation = Config.IconAnimation,
             iconColor = ColorScheme.danger,
-            onSelect = DeletePoint,
+            onSelect = deletePoint,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
                 pointKey = args.pointKey,
                 name = args.name,
-                callback = ListPoints
+                callback = listPoints
             }
         }}
     }
@@ -401,7 +401,7 @@ local function PointMenu(args)
     lib.showContext(ctx.id)
 end
 
-local function AddPoints(args)
+local function addPoints(args)
     local keepLoop = true
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
@@ -424,7 +424,7 @@ local function AddPoints(args)
     })
 end
 
-function ListPoints(args)
+function listPoints(args)
     local ctx = {
         id = 'list_points',
         menu = 'action_item',
@@ -434,11 +434,11 @@ function ListPoints(args)
             description = locale('actions.description_add_point'),
             icon = 'square-plus',
             iconAnimation = Config.IconAnimation,
-            onSelect = AddPoints,
+            onSelect = addPoints,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
-                callback = ListPoints
+                callback = listPoints
             }
         }}
     }
@@ -451,7 +451,7 @@ function ListPoints(args)
             icon = 'map-pin',
             iconAnimation = Config.IconAnimation,
             arrow = true,
-            onSelect = PointMenu,
+            onSelect = pointMenu,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
@@ -464,7 +464,7 @@ function ListPoints(args)
     lib.showContext(ctx.id)
 end
 
-local function ItemActionMenu(args)
+local function itemActionMenu(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local ctx = {
         id = 'action_item',
@@ -476,7 +476,7 @@ local function ItemActionMenu(args)
             description = locale('actions.item.description_change'),
             icon = 'file-pen',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetItem,
+            onSelect = setItem,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
@@ -487,33 +487,33 @@ local function ItemActionMenu(args)
             description = locale('actions.item.description_minmax'),
             icon = 'up-down',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetMinMax,
+            onSelect = setMinMax,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
-                callback = ItemActionMenu
+                callback = itemActionMenu
             }
         }, {
             title = locale('actions.item.random'),
             description = locale('actions.item.description_random'),
             icon ='shuffle',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetRandom,
+            onSelect = setRandom,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
-                callback = ItemActionMenu
+                callback = itemActionMenu
             }
         }, {
             title = locale('actions.item.animation'),
             description = locale('actions.item.description_animation'),
             icon = 'person-walking',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetAnimation,
+            onSelect = setAnimation,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
-                callback = ItemActionMenu
+                callback = itemActionMenu
             }
         }, {
             title = locale('actions.points'),
@@ -521,7 +521,7 @@ local function ItemActionMenu(args)
             icon = 'location-crosshairs',
             iconAnimation = Config.IconAnimation,
             arrow = true,
-            onSelect = ListPoints,
+            onSelect = listPoints,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey
@@ -532,12 +532,12 @@ local function ItemActionMenu(args)
             icon = 'trash',
             iconAnimation = Config.IconAnimation,
             iconColor = ColorScheme.danger,
-            onSelect = DeleteItem,
+            onSelect = deleteItem,
             args = {
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
                 callback = ListItems,
-                callbackCancel = ItemActionMenu
+                callbackCancel = itemActionMenu
             }
         }}
     }
@@ -559,7 +559,7 @@ function ListItems(args)
             icon = 'square-plus',
             iconAnimation = Config.IconAnimation,
             arrow = true,
-            onSelect = SetItem,
+            onSelect = setItem,
             args = {
                 farmKey = args.key,
                 callback = ListItems
@@ -573,7 +573,7 @@ function ListItems(args)
             image = string.format('%s/%s.png', ImageURL, Items[k].name),
             metadata = Utils.GetItemMetadata(Items[k]),
             description = Items[k].description,
-            onSelect = ItemActionMenu,
+            onSelect = itemActionMenu,
             args = {
                 itemKey = k,
                 farmKey = args.key
@@ -584,12 +584,12 @@ function ListItems(args)
     lib.showContext(ctx.id)
 end
 
-local function SaveFarm(args)
+local function saveFarm(args)
     TriggerServerEvent("mri_Qfarm:server:SaveFarm", Farms[args.key], args.key)
     args.callback(args.key)
 end
 
-local function ActionMenu(key)
+local function actionMenu(key)
     local farm = Farms[key]
     local groupName = 'Sem grupo'
     local grade = '0'
@@ -617,41 +617,41 @@ local function ActionMenu(key)
             description = locale('actions.farm.description_rename'),
             icon = 'file-pen',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetFarmName,
+            onSelect = setFarmName,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('creator.group'),
             description = locale('creator.description_group'),
             icon = 'users',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetFarmGroup,
+            onSelect = setFarmGroup,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('creator.grade'),
             description = locale('creator.description_grade'),
             icon = 'list-ol',
             iconAnimation = Config.IconAnimation,
-            onSelect = SetFarmGrade,
+            onSelect = setFarmGrade,
             disabled = disableGradeSet,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locationText,
             icon = 'location-dot',
             iconAnimation = Config.IconAnimation,
-            onSelect = ChangeFarmLocation,
+            onSelect = changeFarmLocation,
             description = locale('actions.farm.description_location'),
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('actions.farm.items'),
@@ -668,30 +668,30 @@ local function ActionMenu(key)
             description = locale('actions.description_teleport'),
             icon = 'location-dot',
             iconAnimation = Config.IconAnimation,
-            onSelect = TeleportToFarm,
+            onSelect = teleportToFarm,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('actions.export'),
             description = locale("actions.description_export", locale("actions.farm")),
             icon = 'copy',
             iconAnimation = Config.IconAnimation,
-            onSelect = ExportFarm,
+            onSelect = exportFarm,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('actions.save'),
             description = locale("actions.description_save"),
             icon = 'floppy-disk',
             iconAnimation = Config.IconAnimation,
-            onSelect = SaveFarm,
+            onSelect = saveFarm,
             args = {
                 key = key,
-                callback = ActionMenu
+                callback = actionMenu
             }
         }, {
             title = locale('actions.delete'),
@@ -699,11 +699,11 @@ local function ActionMenu(key)
             icon = 'trash',
             iconAnimation = Config.IconAnimation,
             iconColor = ColorScheme.danger,
-            onSelect = DeleteFarm,
+            onSelect = deleteFarm,
             args = {
                 key = key,
                 callback = ListFarm,
-                callbackCancel = ActionMenu
+                callbackCancel = actionMenu
             }
         }}
     }
@@ -733,7 +733,7 @@ function ListFarm()
             description = description,
             metadata = Utils.GetMetadataFromFarm(k),
             onSelect = function()
-                ActionMenu(k)
+                actionMenu(k)
             end
         }
     end
@@ -741,7 +741,7 @@ function ListFarm()
     lib.showContext(ctx.id)
 end
 
-local function ManageFarms()
+local function manageFarms()
     Items = exports.ox_inventory:Items()
     local ctx = {
         id = 'menu_farm',
@@ -754,7 +754,7 @@ local function ManageFarms()
             icon = 'square-plus',
             iconAnimation = Config.IconAnimation,
             arrow = true,
-            onSelect = SetFarmName,
+            onSelect = setFarmName,
             args = {
                 callback = ListFarm
             }
@@ -778,6 +778,6 @@ exports['mri_Qbox']:AddManageMenu(
         icon = 'tools',
         iconAnimation = 'fade',
         arrow = true,
-        onSelectFunction = ManageFarms,
+        onSelectFunction = manageFarms,
     }
 )

@@ -18,7 +18,7 @@ local CREATE_TABLE = [[
     COLLATE=utf8mb4_general_ci;
 ]]
 
-local function ItemAdd(source, item, amount)
+local function itemAdd(source, item, amount)
     local Player = QBCore.Functions.GetPlayer(source)
     if (amount > 0) then
         Player.Functions.AddItem(item, amount, false)
@@ -77,10 +77,10 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
     end
 
     local qtd = math.random(itemCfg.min, itemCfg.max)
-    ItemAdd(src, itemName, qtd)
+    itemAdd(src, itemName, qtd)
     if (itemCfg['extraItems']) then
         for name, config in pairs(itemCfg.extraItems) do
-            ItemAdd(src, name, math.random(config.min, config.max))
+            itemAdd(src, name, math.random(config.min, config.max))
         end
     end
 end)
@@ -88,9 +88,7 @@ end)
 RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
     local source = source
     local response = { type = 'success', description = 'Sucesso ao salvar!'}
-    print(json.encode(farm))
     if farm.farmId then
-        print('update')
         local affectedRows = MySQL.Sync.execute(UPDATE_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId})
         if affectedRows <= 0 then
             response.type = 'error'
@@ -99,7 +97,6 @@ RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
         Farms[locateFarm(farm.farmId)] = farm
         dispatchEvents(source, response)
     else
-        print('insert')
         local farmId = MySQL.Sync.insert(INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)})
         if farmId <= 0 then
             response.type = 'error'
@@ -134,7 +131,6 @@ AddEventHandler('onResourceStart', function(resource)
         local result = MySQL.Sync.fetchAll(SELECT_DATA, {})
         local farms = {}
         if result and #result > 0 then
-            print('>0')
             for _, row in ipairs(result) do
                 local zone = {
                     farmId = row.farmId,
