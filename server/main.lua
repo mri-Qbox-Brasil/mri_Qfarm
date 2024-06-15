@@ -87,9 +87,10 @@ end)
 
 RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
     local source = source
-    local response = { type = 'success', description = 'Sucesso ao salvar!'}
+    local response = { type = 'success', description = 'Sucesso ao salvar!' }
     if farm.farmId then
-        local affectedRows = MySQL.Sync.execute(UPDATE_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId})
+        local affectedRows = MySQL.Sync.execute(UPDATE_DATA,
+            { farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId })
         if affectedRows <= 0 then
             response.type = 'error'
             response.description = 'Erro ao salvar.'
@@ -97,7 +98,7 @@ RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
         Farms[locateFarm(farm.farmId)] = farm
         dispatchEvents(source, response)
     else
-        local farmId = MySQL.Sync.insert(INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)})
+        local farmId = MySQL.Sync.insert(INSERT_DATA, { farm.name, json.encode(farm.config), json.encode(farm.group) })
         if farmId <= 0 then
             response.type = 'error'
             response.description = 'Erro ao salvar.'
@@ -111,12 +112,12 @@ end)
 
 RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(farmId)
     local source = source
-    local response = { type = 'success', description = 'Farm excluído!'}
+    local response = { type = 'success', description = 'Farm excluído!' }
     if not farmId then
         TriggerClientEvent('ox_lib:notify', source, response)
         return
     end
-    local affectedRows = MySQL.Sync.execute(DELETE_DATA, {farmId})
+    local affectedRows = MySQL.Sync.execute(DELETE_DATA, { farmId })
     if affectedRows <= 0 then
         response.type = 'error'
         response.description = 'Erro ao excluir.'
