@@ -80,8 +80,9 @@ local function pickAnim(anim)
         ExecuteCommand(string.format('e %s', anim))
     else
         lib.requestAnimDict(anim.dict, 5000)
-        TaskPlayAnim(cache.ped, anim.dict, anim.anim, anim.inSpeed, anim.outSpeed, anim.duration, anim.flag, anim.rate, anim.x,
-        anim.y, anim.z)
+        TaskPlayAnim(cache.ped, anim.dict, anim.anim, anim.inSpeed, anim.outSpeed, anim.duration, anim.flag, anim.rate,
+            anim.x,
+            anim.y, anim.z)
     end
 end
 
@@ -128,8 +129,8 @@ end
 local function checkAndOpenPoint(point, itemName, item)
     if not IsPedInAnyVehicle(PlayerPedId(), false) and (Config.UseTarget or IsControlJustReleased(0, 38)) then
         if ((playerFarm and playerFarm.config["car"] == nil) or
-            IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
-                GetHashKey(playerFarm.config["car"].model))) then
+                IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
+                    GetHashKey(playerFarm.config["car"].model))) then
             lib.hideTextUI()
             if Config.UseTarget then
                 exports.ox_target:removeZone(farmPointTargets[point])
@@ -260,13 +261,16 @@ end
 local function stopFarm()
     startFarm = false
     tasking = false
+
     lib.notify({
         type = 'error',
         description = locale('text.cancel_shift')
     })
+
     for k, _ in pairs(farmPointZones) do
         farmPointZones[k].zone:destroy()
     end
+
     deleteBlip(blip)
     markerCoords = nil
 end
@@ -282,8 +286,8 @@ local function showFarmMenu(farm, groupName)
     }
     for itemName, _ in pairs(farm.config.items) do
         local item = Items[itemName]
-        if not(item == nil) then
-            ctx.options[#ctx.options+1] = {
+        if not (item == nil) then
+            ctx.options[#ctx.options + 1] = {
                 title = item.label,
                 description = item.description,
                 icon = string.format('%s/%s.png', ImageURL, item.name),
@@ -301,11 +305,11 @@ local function showFarmMenu(farm, groupName)
 
     if (startFarm) then
         local item = Items[farmingItem]
-        ctx.options[#ctx.options+1] = {
+        ctx.options[#ctx.options + 1] = {
             title = locale("menus.cancel_farm"),
             icon = "fa-solid fa-ban",
             description = item.label,
-            onSelect = StopFarm,
+            onSelect = stopFarm,
             args = {
                 farm = farm,
                 itemName = farmingItem
@@ -426,7 +430,7 @@ end)
 RegisterNetEvent("QBCore:Client:OnJobUpdate", function(JobInfo)
     PlayerJob = JobInfo
     loadFarms()
- end)
+end)
 
 RegisterNetEvent("QBCore:Client:OnGangUpdate", function(GangInfo)
     PlayerGang = GangInfo
