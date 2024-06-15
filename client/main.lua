@@ -153,7 +153,7 @@ local function checkAndOpenPoint(point, itemName, item)
             pickAnim(animation)
             local item = Items[itemName]
             actionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
-                TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.group.name)
+                TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.farmId)
                 finishPicking()
             end, function() -- Cancel
                 lib.notify({

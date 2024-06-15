@@ -43,13 +43,12 @@ local function locateFarm(id)
     end
 end
 
-RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
-    print('here')
+RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, farmId)
     local src = source
     local cfg = nil
 
     for k, v in pairs(Farms) do
-        if v.group.name == groupName then
+        if v.farmId == farmId then
             cfg = v
             break
         end
@@ -57,13 +56,13 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
 
     local msg = nil
     if not cfg then
-        msg = locale("error.group_not_found", groupName)
+        msg = locale("error.farm_not_found", farmId)
         print(msg)
         TriggerClientEvent("QBCore:Notify", src, msg, 'error')
         return
     end
 
-    if (Items[itemName] == nil) then
+    if (not Items[itemName]) then
         print(string.format("Item: '%s' nao cadastrado!", itemName))
         TriggerClientEvent("QBCore:Notify", src, string.format("Erro ao processar item: %s", itemName), 'error')
         return
@@ -71,7 +70,7 @@ RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, groupName)
 
     local itemCfg = cfg.config.items[itemName]
 
-    if (itemCfg == nil) then
+    if (not itemCfg) then
         print(string.format("Item: '%s' nao configurado!", itemName))
         TriggerClientEvent("QBCore:Notify", src, string.format("Erro ao processar item: %s", itemName), 'error')
         return

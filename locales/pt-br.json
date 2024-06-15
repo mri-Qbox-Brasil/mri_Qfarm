@@ -110,7 +110,7 @@
     "error.invalid_items": "Você não tem os itens corretos!",
     "error.no_items": "Você não tem nenhum item!",
     "error.item_not_found": "Item: %s não encontrado.",
-    "error.group_not_found": "Grupo: %s não encontrado.",
+    "error.farm_not_found": "Grupo: %s não encontrado.",
     "error.item_cfg_not_found": "Config. do item: %s não encontrada.",
     "error.incorrect_vehicle": "Você não está utilizando um veículo adequado.",
     "error.inventory_full": "O inventário está cheio.",
