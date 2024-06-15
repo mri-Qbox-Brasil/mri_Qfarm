@@ -338,32 +338,34 @@ local function loadFarms()
     emptyTargetZones(farmZones, 'zone')
     emptyTargetZones(farmTargets, 'target')
     for k, v in pairs(Farms) do
-        if ((PlayerJob and v.group.name == PlayerJob.name) or (PlayerGang and v.group.name == PlayerGang.name)) then
-            local start = v.config.start
-            start.location = vector3(start.location.x, start.location.y, start.location.z)
-            if Config.UseTarget then
-                farmTargets[k] = exports.ox_target:addSphereZone({
-                    coords = start.location,
-                    options = {
-                        name = ("farm-%s"):format('start' .. k),
-                        icon = "fa-solid fa-screwdriver-wrench",
-                        label = string.format("Abrir %s", v.name),
-                        onSelect = function()
-                            checkAndOpen(v)
-                        end
+        if ((PlayerJob and PlayerJob.name == v.group.name) or (PlayerGang and PlayerGang.name == v.group.name)) then
+            if v.config.start['location'] then
+                local start = v.config.start
+                start.location = vector3(start.location.x, start.location.y, start.location.z)
+                if Config.UseTarget then
+                    farmTargets[k] = exports.ox_target:addSphereZone({
+                        coords = start.location,
+                        options = {
+                            name = ("farm-%s"):format('start' .. k),
+                            icon = "fa-solid fa-screwdriver-wrench",
+                            label = string.format("Abrir %s", v.name),
+                            onSelect = function()
+                                checkAndOpen(v)
+                            end
+                        }
+                    })
+                else
+                    farmZones[#farmZones + 1] = {
+                        IsInside = false,
+                        zone = BoxZone:Create(start.location, start.length, start.width, {
+                            name = ("farm-%s"):format('start' .. k),
+                            minZ = start.location.z - 1.0,
+                            maxZ = start.location.z + 1.0,
+                            debugPoly = Config.Debug
+                        }),
+                        farm = v
                     }
-                })
-            else
-                farmZones[#farmZones + 1] = {
-                    IsInside = false,
-                    zone = BoxZone:Create(start.location, start.length, start.width, {
-                        name = ("farm-%s"):format('start' .. _),
-                        minZ = start.location.z - 1.0,
-                        maxZ = start.location.z + 1.0,
-                        debugPoly = Config.Debug
-                    }),
-                    farm = v
-                }
+                end
             end
         end
     end
