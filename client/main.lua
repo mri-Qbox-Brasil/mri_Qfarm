@@ -55,6 +55,20 @@ DefaultAnim = {
     z = 0
 }
 
+local function DrawTxt(x, y, width, height, scale, text, r, g, b, a, _)
+    SetTextFont(4)
+    SetTextProportional(false)
+    SetTextScale(scale, scale)
+    SetTextColour(r, g, b, a)
+    --SetTextDropshadow(0, 0, 0, 0, 255)
+    SetTextEdge(2, 0, 0, 0, 255)
+    SetTextDropShadow()
+    SetTextOutline()
+    SetTextEntry("STRING")
+    AddTextComponentString(text)
+    DrawText(x - width / 2, y - height / 2 + 0.005)
+end
+
 local function createBlip(data)
     local coordenadas = data.coordenadas
     local b = AddBlipForCoord(coordenadas.x, coordenadas.y, coordenadas.z)
@@ -73,6 +87,45 @@ local function deleteBlip(b)
     if DoesBlipExist(b) then
         RemoveBlip(b)
     end
+end
+
+
+local function stopFarm()
+    startFarm = false
+    tasking = false
+
+    lib.notify({
+        type = 'error',
+        description = locale('text.cancel_shift')
+    })
+
+    for k, _ in pairs(farmPointZones) do
+        farmPointZones[k].zone:destroy()
+    end
+
+    deleteBlip(blip)
+    markerCoords = nil
+end
+
+local function farmThread()
+    CreateThread(function()
+        while (startFarm) do
+            if Config.ShowMarker and markerCoords then
+                local playerLoc = GetEntityCoords(cache.ped)
+                if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y, markerCoords.z, true) <= 30 then
+                    DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3,
+                        0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
+                end
+            end
+            if IsControlJustReleased(0, 168) then
+                stopFarm()
+            end
+            if Config.ShowOSD then
+                DrawTxt(0.93, 1.44, 1.0, 1.0, 0.6, locale('actions.stop_f7'), 255, 255, 255, 255)
+            end
+            Wait(0)
+        end
+    end)
 end
 
 local function pickAnim(anim)
@@ -238,6 +291,7 @@ local function startFarming(args)
         type = "info"
     })
     local pickedFarms = 0
+    farmThread()
     while startFarm do
         if tasking then
             Wait(5000)
@@ -256,23 +310,6 @@ local function startFarming(args)
         end
         Wait(5)
     end
-end
-
-local function stopFarm()
-    startFarm = false
-    tasking = false
-
-    lib.notify({
-        type = 'error',
-        description = locale('text.cancel_shift')
-    })
-
-    for k, _ in pairs(farmPointZones) do
-        farmPointZones[k].zone:destroy()
-    end
-
-    deleteBlip(blip)
-    markerCoords = nil
 end
 
 local function showFarmMenu(farm, groupName)
@@ -385,19 +422,6 @@ local function loadFarms()
         end
     end
 end
-
-CreateThread(function()
-    while (true) do
-        if markerCoords then
-            local playerLoc = GetEntityCoords(cache.ped)
-            if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y, markerCoords.z, true) <= 30 then
-                DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3,
-                    0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
-            end
-        end
-        Wait(0)
-    end
-end)
 
 AddEventHandler("onResourceStart", function(resourceName)
     if resourceName == GetCurrentResourceName() then

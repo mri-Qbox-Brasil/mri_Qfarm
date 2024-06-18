@@ -50,6 +50,7 @@
     "actions.nopoints": "Não foi possível salvar o item. Cadastre os pontos de coleta primeiro",
     "actions.add_point": "Adicionar pontos",
     "actions.description_add_point": "Adicionar um ou mais pontos na rota.",
+    "actions.stop_f7": "Pressione [~g~F7~w~] para cancelar o turno",
     "anim.dict": "Dicionário",
     "anim.anim": "Animação",
     "anim.inspeed": "Velocidade de início",
