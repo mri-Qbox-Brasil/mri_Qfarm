@@ -4,7 +4,10 @@ local function splitStr(inputstr, sep)
     end
     local t = {}
     for str in string.gmatch(inputstr, "([^" .. sep .. "]+)") do
-        table.insert(t, str)
+        str = string.gsub(str, "^%s*(.-)%s*$", "%1")
+        if not (str == nil or str == '') then
+            table.insert(t, str)
+        end
     end
     return t
 end
