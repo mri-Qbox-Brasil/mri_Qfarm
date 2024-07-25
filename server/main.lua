@@ -6,17 +6,6 @@ local SELECT_DATA = 'SELECT * FROM mri_qfarm'
 local INSERT_DATA = 'INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)'
 local UPDATE_DATA = 'UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?'
 local DELETE_DATA = 'DELETE FROM mri_qfarm WHERE farmId = ?'
-local CREATE_TABLE = [[
-    CREATE TABLE IF NOT EXISTS mri_qfarm (
-        farmId BIGINT AUTO_INCREMENT PRIMARY KEY,
-        farmName VARCHAR(100) NOT NULL UNIQUE,
-        farmConfig LONGTEXT NULL,
-        farmGroup LONGTEXT NULL
-    )
-    ENGINE=InnoDB
-    DEFAULT CHARSET=utf8mb4
-    COLLATE=utf8mb4_general_ci;
-]]
 
 local function itemAdd(source, item, amount)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -127,8 +116,8 @@ RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(farmId)
 end)
 
 AddEventHandler('onResourceStart', function(resource)
+    Wait(200)
     if resource == GetCurrentResourceName() then
-        MySQL.Async.execute(CREATE_TABLE)
         local result = MySQL.Sync.fetchAll(SELECT_DATA, {})
         local farms = {}
         if result and #result > 0 then
