@@ -771,10 +771,6 @@ local function manageFarms()
     lib.showContext(ctx.id)
 end
 
-local function manageFarmsCmd(source, args, raw)
-    manageFarms()
-end
-
 if GetResourceState('mri_Qbox') == 'started' then
     exports['mri_Qbox']:AddManageMenu(
         {
