@@ -35,3 +35,7 @@ dependencies {
 files {
     "locales/*.json"
 }
+
+dependencies {
+    "ox_lib"
+}
