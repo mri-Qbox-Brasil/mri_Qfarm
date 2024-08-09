@@ -135,3 +135,15 @@ AddEventHandler('onResourceStart', function(resource)
         dispatchEvents(source)
     end
 end)
+
+if GetResourceState('mri_Qbox') ~= 'started' then
+    lib.addCommand('managefarms',{
+        help = 'Crie ou gerencie rotas de farm do servidor.',
+        restricted = 'group.admin',
+    }, function(source, args, raw)
+        print('roi')
+        lib.callback('mri_Qfarm:manageFarmsMenu', source, function(result)
+            print(result)
+        end)
+    end)
+end

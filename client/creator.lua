@@ -771,13 +771,24 @@ local function manageFarms()
     lib.showContext(ctx.id)
 end
 
-exports['mri_Qbox']:AddManageMenu(
-    {
-        title = 'Farms',
-        description = 'Crie ou gerencie rotas de farm do servidor.',
-        icon = 'tools',
-        iconAnimation = 'fade',
-        arrow = true,
-        onSelectFunction = manageFarms,
-    }
-)
+local function manageFarmsCmd(source, args, raw)
+    manageFarms()
+end
+
+if GetResourceState('mri_Qbox') == 'started' then
+    exports['mri_Qbox']:AddManageMenu(
+        {
+            title = 'Farms',
+            description = 'Crie ou gerencie rotas de farm do servidor.',
+            icon = 'tools',
+            iconAnimation = 'fade',
+            arrow = true,
+            onSelectFunction = manageFarms,
+        }
+    )
+else
+    lib.callback.register('mri_Qfarm:manageFarmsMenu', function()
+        manageFarms()
+        return true
+    end)
+end
