@@ -141,9 +141,6 @@ if GetResourceState('mri_Qbox') ~= 'started' then
         help = 'Crie ou gerencie rotas de farm do servidor.',
         restricted = 'group.admin',
     }, function(source, args, raw)
-        print('roi')
-        lib.callback('mri_Qfarm:manageFarmsMenu', source, function(result)
-            print(result)
-        end)
+        lib.callback('mri_Qfarm:manageFarmsMenu', source)
     end)
 end
