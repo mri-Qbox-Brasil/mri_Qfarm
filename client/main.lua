@@ -165,7 +165,15 @@ local function nextTask(shuffle)
     if (shuffle) then
         currentPoint = math.random(1, #farmPoints)
     else
-        currentPoint = currentSequence + 1
+        repeat
+            currentSequence = currentSequence + 1
+        until farmPoints[currentSequence] ~= nil or currentSequence > #farmPoints
+
+        if currentSequence > #farmPoints then
+            currentSequence = 1
+        end
+
+        currentPoint = currentSequence
     end
     tasking = true
     markerCoords = {
