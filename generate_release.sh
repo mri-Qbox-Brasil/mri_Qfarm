@@ -16,16 +16,14 @@ get_main_branch() {
 # Função para obter a última tag e sugerir a próxima versão
 suggest_next_version() {
   if [[ -z "$last_tag" ]]; then
-    echo "Nenhuma tag encontrada. Sugerindo v1.0.0 como primeira tag."
-    echo "v1.0.0"
+    next_version="v1.0.0"
   else
     # Extrai a versão e sugere a próxima, incrementando o último dígito
     IFS='.' read -r major minor patch <<< "${last_tag//v/}"
     next_version="v$major.$minor.$((patch + 1))"
-    echo "$next_version"
   fi
+  echo "$next_version"
 }
-
 # Obtém a branch principal
 main_branch=$(get_main_branch)
 echo "Branch principal detectada: $main_branch"
