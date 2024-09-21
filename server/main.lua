@@ -32,6 +32,17 @@ local function locateFarm(id)
     end
 end
 
+local function cleanNullPoints(config)
+    for name, value in pairs(config.items) do
+        local newPoints = {}
+        for k, v in pairs(value.points) do
+            newPoints[#newPoints + 1] = v
+        end
+        config.items[name].points = newPoints
+    end
+    return config
+end
+
 RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, farmId)
     local src = source
     local cfg = nil
@@ -125,7 +136,7 @@ AddEventHandler('onResourceStart', function(resource)
                 local zone = {
                     farmId = row.farmId,
                     name = row.farmName,
-                    config = json.decode(row.farmConfig),
+                    config = cleanNullPoints(json.decode(row.farmConfig)),
                     group = json.decode(row.farmGroup)
                 }
                 farms[_] = zone

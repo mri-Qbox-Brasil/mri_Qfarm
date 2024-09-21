@@ -60,7 +60,7 @@ local function DrawTxt(x, y, width, height, scale, text, r, g, b, a, _)
     SetTextProportional(false)
     SetTextScale(scale, scale)
     SetTextColour(r, g, b, a)
-    --SetTextDropshadow(0, 0, 0, 0, 255)
+    -- SetTextDropshadow(0, 0, 0, 0, 255)
     SetTextEdge(2, 0, 0, 0, 255)
     SetTextDropShadow()
     SetTextOutline()
@@ -84,11 +84,33 @@ local function createBlip(data)
 end
 
 local function deleteBlip(b)
-    if DoesBlipExist(b) then
+    if b and DoesBlipExist(b) then
         RemoveBlip(b)
     end
 end
 
+local function emptyTargetZones(tableObj, type)
+    if #tableObj > 0 then
+        for k, _ in pairs(tableObj) do
+            if type == 'zone' then
+                tableObj[k].zone:destroy()
+                if Config.Debug then
+                    print(string.format("Removing target: %s: %s", k, tableObj[k]))
+                end
+            else
+                exports.ox_target:removeZone(tableObj[k])
+                if Config.Debug then
+                    print(string.format("Removing target: %s: %s", k, tableObj[k]))
+                end
+            end
+        end
+        table.clear(tableObj)
+    else
+        if Config.Debug then
+            print("Table is empty")
+        end
+    end
+end
 
 local function stopFarm()
     startFarm = false
@@ -99,12 +121,15 @@ local function stopFarm()
         description = locale('text.cancel_shift')
     })
 
-    for k, _ in pairs(farmPointZones) do
-        farmPointZones[k].zone:destroy()
+    if Config.UseTarget then
+        emptyTargetZones(farmPointTargets, 'target')
+    else
+        emptyTargetZones(farmZones, 'zone')
     end
 
     deleteBlip(blip)
     markerCoords = nil
+    currentPoint = 0
 end
 
 local function farmThread()
@@ -112,9 +137,10 @@ local function farmThread()
         while (startFarm) do
             if Config.ShowMarker and markerCoords then
                 local playerLoc = GetEntityCoords(cache.ped)
-                if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y, markerCoords.z, true) <= 30 then
-                    DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3,
-                        0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
+                if GetDistanceBetweenCoords(playerLoc.x, playerLoc.y, playerLoc.z, markerCoords.x, markerCoords.y,
+                    markerCoords.z, true) <= 30 then
+                    DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.3, 0.3, 0.3, 255, 255, 0, 80, 0, 1, 2, 0)
                 end
             end
             if IsControlJustReleased(0, 168) then
@@ -134,8 +160,7 @@ local function pickAnim(anim)
     else
         lib.requestAnimDict(anim.dict, 5000)
         TaskPlayAnim(cache.ped, anim.dict, anim.anim, anim.inSpeed, anim.outSpeed, anim.duration, anim.flag, anim.rate,
-            anim.x,
-            anim.y, anim.z)
+            anim.x, anim.y, anim.z)
     end
 end
 
@@ -158,22 +183,18 @@ local function actionProcess(name, description, duration, done, cancel)
     }, nil, nil, nil, done, cancel)
 end
 
-local function nextTask(shuffle)
+local function nextTask(shuffle, unlimited)
     if tasking then
         return
     end
     if (shuffle) then
         currentPoint = math.random(1, #farmPoints)
     else
-        repeat
-            currentSequence = currentSequence + 1
-        until farmPoints[currentSequence] ~= nil or currentSequence > #farmPoints
-
-        if currentSequence > #farmPoints then
-            currentSequence = 1
+        if unlimited and currentSequence >= #farmPoints then
+            currentPoint = 1
+        else
+            currentPoint = currentSequence + 1
         end
-
-        currentPoint = currentSequence
     end
     tasking = true
     markerCoords = {
@@ -190,13 +211,14 @@ end
 local function checkAndOpenPoint(point, itemName, item)
     if not IsPedInAnyVehicle(PlayerPedId(), false) and (Config.UseTarget or IsControlJustReleased(0, 38)) then
         if ((playerFarm and playerFarm.config["car"] == nil) or
-                IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true),
-                    GetHashKey(playerFarm.config["car"].model))) then
+            IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["car"].model))) then
             lib.hideTextUI()
-            if Config.UseTarget then
-                exports.ox_target:removeZone(farmPointTargets[point])
-            else
-                farmPointZones[point].zone:destroy()
+            if not item["unlimited"] then
+                if Config.UseTarget then
+                    exports.ox_target:removeZone(farmPointTargets[point])
+                else
+                    farmPointZones[point].zone:destroy()
+                end
             end
             currentSequence = currentPoint
             currentPoint = -1
@@ -233,6 +255,10 @@ local function checkAndOpenPoint(point, itemName, item)
     end
 end
 
+local function checkInteraction(point)
+    return currentPoint == point
+end
+
 local function loadFarmZones(itemName, item)
     for point, zone in pairs(item.points) do
         zone = vector3(zone.x, zone.y, zone.z)
@@ -240,10 +266,14 @@ local function loadFarmZones(itemName, item)
         if Config.UseTarget then
             farmPointTargets[point] = exports.ox_target:addSphereZone({
                 coords = zone,
+                name = label,
                 options = {
                     name = label,
                     icon = "fa-solid fa-screwdriver-wrench",
                     label = "Coletar",
+                    canInteract = function()
+                        return checkInteraction(point)
+                    end,
                     onSelect = function()
                         checkAndOpenPoint(point, itemName, item)
                     end
@@ -292,7 +322,11 @@ local function startFarming(args)
     startFarm = true
     farmingItem = itemName
     farmPoints = farmItem.points
-    local amount = #farmPoints
+    local amount = -1
+    if (not farmItem.unlimited) then
+        amount = #farmPoints
+    end
+
     currentSequence = 0
     lib.notify({
         description = locale("text.start_shift", Items[itemName].label),
@@ -304,7 +338,7 @@ local function startFarming(args)
         if tasking then
             Wait(5000)
         else
-            if pickedFarms >= amount then
+            if amount >= 0 and pickedFarms >= amount then
                 startFarm = false
                 markerCoords = nil
                 lib.notify({
@@ -312,7 +346,7 @@ local function startFarming(args)
                     type = "info"
                 })
             else
-                nextTask(farmItem.random)
+                nextTask(farmItem.randomRoute, farmItem.unlimited)
                 pickedFarms = pickedFarms + 1
             end
         end
@@ -371,43 +405,37 @@ local function checkAndOpen(farm)
     end
 end
 
-local function emptyTargetZones(table, type)
-    if #table > 0 then
-        for k, _ in pairs(table) do
-            if type == 'zone' then
-                table[k].zone:destroy()
-            else
-                exports.ox_target:removeZone(table[k])
-            end
-        end
-    end
+local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
+    local result = PlayerGroupData and PlayerGroupData.name == requiredGroup
+    return result and (PlayerGroupData and PlayerGroupData.grade.level >= requiredGrade)
 end
 
 local function loadFarms()
     emptyTargetZones(farmZones, 'zone')
     emptyTargetZones(farmTargets, 'target')
     for k, v in pairs(Farms) do
-        if ((PlayerJob and PlayerJob.name == v.group.name) or (PlayerGang and PlayerGang.name == v.group.name)) then
+        if roleCheck(PlayerJob, v.group.name, v.group.grade) or roleCheck(PlayerGang, v.group.name, v.group.grade) then
             if v.config.start['location'] then
                 local start = v.config.start
                 start.location = vector3(start.location.x, start.location.y, start.location.z)
+                local zoneName = ("farm-%s"):format('start' .. k)
                 if Config.UseTarget then
-                    farmTargets[k] = exports.ox_target:addSphereZone({
+                    table.insert(farmTargets, exports.ox_target:addSphereZone({
                         coords = start.location,
+                        name = zoneName,
                         options = {
-                            name = ("farm-%s"):format('start' .. k),
                             icon = "fa-solid fa-screwdriver-wrench",
                             label = string.format("Abrir %s", v.name),
                             onSelect = function()
                                 checkAndOpen(v)
                             end
                         }
-                    })
+                    }))
                 else
                     farmZones[#farmZones + 1] = {
                         IsInside = false,
                         zone = BoxZone:Create(start.location, start.length, start.width, {
-                            name = ("farm-%s"):format('start' .. k),
+                            name = zoneName,
                             minZ = start.location.z - 1.0,
                             maxZ = start.location.z + 1.0,
                             debugPoly = Config.Debug

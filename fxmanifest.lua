@@ -3,9 +3,9 @@ game "gta5"
 lua54 "yes"
 use_experimental_fxv2_oal "yes"
 
-description "Farm creation script"
-author "GFive"
-version "1.0.0"
+description "Responsável por criar e executar as rotas de farm do servidor"
+author "MRI QBOX Team"
+version "MRIQBOX_VERSION"
 
 ox_lib "locale"
 
@@ -34,8 +34,4 @@ dependencies {
 
 files {
     "locales/*.json"
-}
-
-dependencies {
-    "ox_lib"
 }
