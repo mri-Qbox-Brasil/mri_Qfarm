@@ -354,13 +354,11 @@ local function startFarming(args)
     end
 end
 
-local function showFarmMenu(farm, groupName)
-    local groups = Utils.GetBaseGroups(true)
+local function showFarmMenu(farm)
     local ctx = {
         id = 'farm_menu',
         title = farm.name,
         icon = "fa-solid fa-briefcase",
-        description = groups[groupName].label,
         options = {}
     }
     for itemName, _ in pairs(farm.config.items) do
@@ -399,22 +397,29 @@ local function showFarmMenu(farm, groupName)
     lib.showContext(ctx.id)
 end
 
-local function checkAndOpen(farm)
-    if ((PlayerJob and farm.group.name == PlayerJob.name) or (PlayerGang and farm.group.name == PlayerGang.name)) then
-        showFarmMenu(farm, farm.group.name)
+
+local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
+    if requiredGroup then
+        for i = 1, #requiredGroup do
+            if requiredGroup[i] == PlayerGroupData.name then
+                return not PlayerGroupData.grade and true or requiredGrade <= PlayerGroupData.grade.level
+            end
+        end
     end
 end
 
-local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
-    local result = PlayerGroupData and PlayerGroupData.name == requiredGroup
-    return result and (PlayerGroupData and PlayerGroupData.grade.level >= requiredGrade)
+local function checkAndOpen(farm, isPublic)
+    if isPublic or roleCheck(PlayerJob, farm.group.name, farm.group.grade) or roleCheck(PlayerGang, farm.group.name, farm.group.grade) then
+        showFarmMenu(farm)
+    end
 end
 
 local function loadFarms()
     emptyTargetZones(farmZones, 'zone')
     emptyTargetZones(farmTargets, 'target')
     for k, v in pairs(Farms) do
-        if roleCheck(PlayerJob, v.group.name, v.group.grade) or roleCheck(PlayerGang, v.group.name, v.group.grade) then
+        local isPublic = not v.group['name'] or #v.group['name'] == 0
+        if isPublic or roleCheck(PlayerJob, v.group.name, v.group.grade) or roleCheck(PlayerGang, v.group.name, v.group.grade) then
             if v.config.start['location'] then
                 local start = v.config.start
                 start.location = vector3(start.location.x, start.location.y, start.location.z)
@@ -427,7 +432,7 @@ local function loadFarms()
                             icon = "fa-solid fa-screwdriver-wrench",
                             label = string.format("Abrir %s", v.name),
                             onSelect = function()
-                                checkAndOpen(v)
+                                checkAndOpen(v, isPublic)
                             end
                         }
                     }))

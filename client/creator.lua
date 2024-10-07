@@ -165,12 +165,12 @@ local function setFarmGroup(args)
     local key = args.key
     local farm = Farms[key]
     local input = lib.inputDialog(title, {{
-        type = 'select',
+        type = 'multi-select',
         label = locale('creator.group'),
         description = locale('creator.description_group'),
         options = Utils.GetBaseGroups(),
         default = farm.group['name'],
-        required = true,
+        required = false,
         searchable = true
     }})
     if input then
@@ -197,17 +197,25 @@ end
 local function setFarmGrade(args)
     local key = args.key
     local farm = Farms[key]
+    -- local input = lib.inputDialog(title, {{
+    --     type = 'select',
+    --     label = locale('creator.grade'),
+    --     description = locale('creator.description_grade'),
+    --     options = Utils.GetBaseGroups(true)[farm.group.name].grades,
+    --     default = farm.group['grade'] or 0,
+    --     required = true,
+    --     searchable = true
+    -- }})
     local input = lib.inputDialog(title, {{
-        type = 'select',
+        type = 'number',
         label = locale('creator.grade'),
         description = locale('creator.description_grade'),
-        options = Utils.GetBaseGroups(true)[farm.group.name].grades,
         default = farm.group['grade'] or 0,
         required = true,
         searchable = true
     }})
     if input then
-        farm.group['grade'] = input[1]
+        farm.group['grade'] = tostring(input[1])
         Farms[key] = farm
     end
     args.callback(key)
@@ -800,12 +808,12 @@ end
 
 local function actionMenu(key)
     local farm = Farms[key]
-    local groupName = 'Sem grupo'
+    local groupName
     local grade = '0'
     local groups = Utils.GetBaseGroups(true)
     local disableGradeSet = false
     if farm.group['name'] then
-        groupName = groups[farm.group.name].label
+        groupName = Utils.GetGroupsLabel(farm.group['name'])
     else
         disableGradeSet = true
     end
@@ -930,9 +938,8 @@ function ListFarm()
     }
     for k, v in pairs(Farms) do
         local groupName = locale('creator.no_group')
-        local groups = Utils.GetBaseGroups(true)
         if v.group['name'] then
-            groupName = groups[v.group.name].label
+            groupName = Utils.GetGroupsLabel(v.group['name'])
         end
         local description = locale('menus.description_farm', groupName)
         ctx.options[#ctx.options + 1] = {

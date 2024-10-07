@@ -76,7 +76,7 @@
     "creator.description_grade": "Grau necessário para iniciar o farm.",
     "creator.new_farm": "Criando Farm",
     "creator.edit_farm": "Editando %s",
-    "creator.no_group": "Sem grupo definido",
+    "creator.no_group": "Público",
     "dialog.confirmation": "Confirmação",
     "dialog.change_label": "Renomear '%s'",
     "items.spawn": "Código de Spawn",

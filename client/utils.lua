@@ -116,6 +116,22 @@ function Utils.GetBaseGroups(named)
     return groups
 end
 
+function Utils.GetGroupsLabel(groups)
+    local baseGroups = Utils.GetBaseGroups(true)
+    local groupName = ""
+    for i = 1, #(groups) do
+        if groups[i] then
+            if groupName == "" then
+                groupName = baseGroups[groups[i]].label
+            else
+                groupName = groupName .. ', ' .. baseGroups[groups[i]].label
+            end
+        end
+    end
+    groupName = groupName == "" and locale('creator.no_group') or groupName
+    return groupName
+end
+
 function Utils.GetBaseItems()
     local items = {}
     for k, v in pairs(exports.ox_inventory:Items()) do
