@@ -3,32 +3,35 @@ local Utils = {}
 function Utils.GetPedCoords()
     lib.hideTextUI()
     local text = {}
-    table.insert(text, locale('actions.choose_location.1'))
-    table.insert(text, locale('actions.choose_location.2'))
-    lib.showTextUI(table.concat(text), {
-        position = 'right-center'
-    })
+    table.insert(text, locale("actions.choose_location.1"))
+    table.insert(text, locale("actions.choose_location.2"))
+    lib.showTextUI(
+        table.concat(text),
+        {
+            position = "right-center"
+        }
+    )
 
     while true do
         Wait(0)
         if IsControlJustReleased(0, 38) then
             lib.hideTextUI()
             return {
-                result = 'choose',
+                result = "choose",
                 coords = GetEntityCoords(cache.ped)
             }
         end
         if IsControlJustReleased(0, 177) then
             lib.hideTextUI()
             return {
-                result = 'cancel',
+                result = "cancel",
                 coords = nil
             }
         end
         if IsControlJustPressed(0, 201) then
             lib.hideTextUI()
             return {
-                result = 'end',
+                result = "end",
                 coords = nil
             }
         end
@@ -45,16 +48,18 @@ function Utils.TpToLoc(coords)
 end
 
 function Utils.ConfirmationDialog(content)
-    return lib.alertDialog({
-        header = locale('dialog.confirmation'),
-        content = content,
-        centered = true,
-        cancel = true,
-        labels = {
-            cancel = locale('actions.cancel'),
-            confirm = locale('actions.confirm')
+    return lib.alertDialog(
+        {
+            header = locale("dialog.confirmation"),
+            content = content,
+            centered = true,
+            cancel = true,
+            labels = {
+                cancel = locale("actions.cancel"),
+                confirm = locale("actions.confirm")
+            }
         }
-    })
+    )
 end
 
 function Utils.GetLocation(coords)
@@ -64,7 +69,7 @@ end
 
 function Utils.GetLocationFormatted(location, key)
     if key then
-        return string.format('[%02d] - %s', key, Utils.GetLocation(location))
+        return string.format("[%02d] - %s", key, Utils.GetLocation(location))
     else
         return Utils.GetLocation(location)
     end
@@ -75,7 +80,7 @@ function Utils.GetGroupGrades(group)
     for k, v in pairs(group.grades) do
         grades[#grades + 1] = {
             value = k,
-            label = string.format('%s - %s', k, v.name)
+            label = string.format("%s - %s", k, v.name)
         }
     end
     return grades
@@ -100,7 +105,7 @@ function Utils.GetBaseGroups(named)
         end
     end
     for k, v in pairs(gangs) do
-        if not (k == 'none') then
+        if not (k == "none") then
             local data = {
                 value = k,
                 label = v.label,
@@ -120,15 +125,17 @@ function Utils.GetGroupsLabel(groups)
     local baseGroups = Utils.GetBaseGroups(true)
     local groupName = ""
     for i = 1, #(groups) do
-        if groups[i] then
-            if groupName == "" then
-                groupName = baseGroups[groups[i]].label
-            else
-                groupName = groupName .. ', ' .. baseGroups[groups[i]].label
-            end
+        local group = locale("error.group_not_found", groups[i])
+        if baseGroups[groups[i]] then
+            group = baseGroups[groups[i]]["label"]
+        end
+        if groupName == "" then
+            groupName = group
+        else
+            groupName = groupName .. ", " .. group
         end
     end
-    groupName = groupName == "" and locale('creator.no_group') or groupName
+    groupName = groupName == "" and locale("creator.no_group") or groupName
     return groupName
 end
 
@@ -137,39 +144,47 @@ function Utils.GetBaseItems()
     for k, v in pairs(exports.ox_inventory:Items()) do
         items[#items + 1] = {
             value = k,
-            label = string.format('%s (%s)', v.label, k)
+            label = string.format("%s (%s)", v.label, k)
         }
     end
     return items
 end
 
 function Utils.GetItemMetadata(item)
-    return {{
-        label = locale('items.spawn'),
-        value = item.name
-    }, {
-        label = locale('items.weight'),
-        value = item.weight
-    }, {
-        label = locale('items.type'),
-        value = item.type or locale('items.notype')
-    }}
+    return {
+        {
+            label = locale("items.spawn"),
+            value = item.name
+        },
+        {
+            label = locale("items.weight"),
+            value = item.weight
+        },
+        {
+            label = locale("items.type"),
+            value = item.type or locale("items.notype")
+        }
+    }
 end
 
 function Utils.GetMetadataFromFarm(key)
     local data = {}
     local items = Farms[key].config.items
     for k, v in pairs(items) do
-        data[#data + 1] = {
-            label = locale('menus.route'),
-            value = string.format('%s (%s)', Items[k].label, k)
-        }
+        if Items[k] then
+            data[#data + 1] = {
+                label = locale("menus.route"),
+                value = string.format("%s (%s)", Items[k].label, k)
+            }
+        end
     end
     if #data <= 0 then
-        return {{
-            label = locale('menus.route'),
-            value = locale('menus.no_route')
-        }}
+        return {
+            {
+                label = locale("menus.route"),
+                value = locale("menus.no_route")
+            }
+        }
     end
     return data
 end

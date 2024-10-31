@@ -1,4 +1,4 @@
-local Utils = lib.require('client/utils')
+local Utils = lib.require("client/utils")
 local newFarm = {
     name = nil,
     config = {
@@ -25,8 +25,8 @@ local newItem = {
 }
 
 local function delete(caption, tableObj, key)
-    if Utils.ConfirmationDialog(caption) == 'confirm' then
-        if type(key) == 'number' then
+    if Utils.ConfirmationDialog(caption) == "confirm" then
+        if type(key) == "number" then
             table.remove(tableObj, key)
         else
             tableObj[key] = nil
@@ -36,105 +36,146 @@ local function delete(caption, tableObj, key)
 end
 
 local function deleteFarm(args)
-    local farm = Farms[args.key]
-    local result = delete(locale('actions.confirmation_description', locale('actions.farm'), Farms[args.key].name),
-        Farms, args.key)
+    local farm = Farms[args.farmKey]
+    local result =
+        delete(
+        locale("actions.confirmation_description", locale("actions.farm"), Farms[args.farmKey].name),
+        Farms,
+        args.farmKey
+    )
     if result then
-        TriggerServerEvent('mri_Qfarm:server:DeleteFarm', farm.farmId)
+        TriggerServerEvent("mri_Qfarm:server:DeleteFarm", farm.farmId)
         args.callback()
     else
-        args.callbackCancel(args.key)
+        args.callbackCancel(args.farmKey)
     end
 end
 
 local function deleteItem(args)
-    local result = delete(locale('actions.confirmation_description', locale('actions.item'), Items[args.itemKey].label),
-        Farms[args.farmKey].config.items, args.itemKey)
+    local itemLabel = args.itemKey
+    if Items[args.itemKey] then
+        itemLabel = Items[args.itemKey].label
+    end
+    local result =
+        delete(
+        locale("actions.confirmation_description", locale("actions.item"), itemLabel),
+        Farms[args.farmKey].config.items,
+        args.itemKey
+    )
     if result then
-        args.callback({
-            key = args.farmKey
-        })
+        args.callback(
+            {
+                farmKey = args.farmKey
+            }
+        )
     else
-        args.callbackCancel({
-            farmKey = args.farmKey,
-            itemKey = args.itemKey
-        })
+        args.callbackCancel(
+            {
+                farmKey = args.farmKey,
+                itemKey = args.itemKey
+            }
+        )
     end
 end
 
 local function deletePoint(args)
-    local result = delete(locale('actions.confirmation_description', locale('actions.point'), args.name),
-        Farms[args.farmKey].config.items[args.itemKey].points, args.pointKey)
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    local result =
+        delete(
+        locale("actions.confirmation_description", locale("actions.point"), args.name),
+        Farms[args.farmKey].config.items[args.itemKey].points,
+        args.pointKey
+    )
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function deleteExtraItem(args)
-    local result = delete(locale('actions.confirmation_description', locale('actions.extra_item'), args.name),
-        Farms[args.farmKey].config.items[args.itemKey].extraItems, args.extraItemKey)
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    local result =
+        delete(
+        locale("actions.confirmation_description", locale("actions.extra_item"), args.name),
+        Farms[args.farmKey].config.items[args.itemKey].extraItems,
+        args.extraItemKey
+    )
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function exportFarm(args)
-    lib.setClipboard(json.encode(Farms[args.key], {
-        indent = true
-    }))
-    lib.notify({
-        type = 'success',
-        description = 'Copiado para a área de transferência.'
-    })
-    args.callback(args.key)
+    lib.setClipboard(
+        json.encode(
+            Farms[args.farmKey],
+            {
+                indent = true
+            }
+        )
+    )
+    lib.notify(
+        {
+            type = "success",
+            description = locale("misc.exported")
+        }
+    )
+    args.callback(args.farmKey)
 end
 
 local function changeFarmLocation(args)
     local location = nil
     local result = Utils.GetPedCoords()
-    if result.result == 'choose' then
+    if result.result == "choose" then
         location = result.coords
     end
     if location then
-        Farms[args.key].config.start = {
+        Farms[args.farmKey].config.start = {
             location = location,
             width = Config.FarmBoxWidth,
             length = Config.FarmBoxLength
         }
-        lib.notify({
-            type = 'success',
-            description = locale('notify.updated')
-        })
+        lib.notify(
+            {
+                type = "success",
+                description = locale("notify.updated")
+            }
+        )
     end
-    args.callback(args.key)
+    args.callback(args.farmKey)
 end
 
 local function changePointLocation(args)
     local location = nil
     local result = Utils.GetPedCoords()
-    if result.result == 'choose' then
+    if result.result == "choose" then
         location = result.coords
     end
     if location then
         Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey] = location
-        lib.notify({
-            type = 'success',
-            description = locale('notify.updated')
-        })
+        lib.notify(
+            {
+                type = "success",
+                description = locale("notify.updated")
+            }
+        )
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey,
-        pointKey = args.pointKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey,
+            pointKey = args.pointKey
+        }
+    )
 end
 
 local function setFarmName(args)
     local key = nil
-    if args and args.key then
-        key = args.key
+    if args and args.farmKey then
+        key = args.farmKey
     end
     local farm = {}
     if key then
@@ -142,14 +183,20 @@ local function setFarmName(args)
     else
         table.clone(newFarm, farm)
     end
-    local input = lib.inputDialog(title, {{
-        type = 'input',
-        label = locale('creator.name'),
-        description = locale('creator.description_name'),
-        placeholder = locale('creator.placeholder_name'),
-        default = farm.name,
-        required = true
-    }})
+    local input =
+        lib.inputDialog(
+        title,
+        {
+            {
+                type = "input",
+                label = locale("creator.name"),
+                description = locale("creator.description_name"),
+                placeholder = locale("creator.placeholder_name"),
+                default = farm.name,
+                required = true
+            }
+        }
+    )
     if input then
         farm.name = input[1]
         if not key then
@@ -162,76 +209,86 @@ local function setFarmName(args)
 end
 
 local function setFarmGroup(args)
-    local key = args.key
+    local key = args.farmKey
     local farm = Farms[key]
-    local input = lib.inputDialog(title, {{
-        type = 'multi-select',
-        label = locale('creator.group'),
-        description = locale('creator.description_group'),
-        options = Utils.GetBaseGroups(),
-        default = farm.group['name'],
-        required = false,
-        searchable = true
-    }})
+    local input =
+        lib.inputDialog(
+        title,
+        {
+            {
+                type = "multi-select",
+                label = locale("creator.group"),
+                description = locale("creator.description_group"),
+                options = Utils.GetBaseGroups(),
+                default = farm.group["name"],
+                required = false,
+                searchable = true
+            }
+        }
+    )
     if input then
-        farm.group['name'] = input[1]
+        farm.group["name"] = input[1]
         Farms[key] = farm
     end
     args.callback(key)
 end
 
 local function teleportToFarm(args)
-    Utils.TpToLoc(Farms[args.key].config.start.location)
-    args.callback(args.key)
+    Utils.TpToLoc(Farms[args.farmKey].config.start.location)
+    args.callback(args.farmKey)
 end
 
 local function teleportToPoint(args)
     Utils.TpToLoc(Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey,
-        pointKey = args.pointKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey,
+            pointKey = args.pointKey
+        }
+    )
 end
 
 local function setFarmGrade(args)
-    local key = args.key
+    local key = args.farmKey
     local farm = Farms[key]
-    -- local input = lib.inputDialog(title, {{
-    --     type = 'select',
-    --     label = locale('creator.grade'),
-    --     description = locale('creator.description_grade'),
-    --     options = Utils.GetBaseGroups(true)[farm.group.name].grades,
-    --     default = farm.group['grade'] or 0,
-    --     required = true,
-    --     searchable = true
-    -- }})
-    local input = lib.inputDialog(title, {{
-        type = 'number',
-        label = locale('creator.grade'),
-        description = locale('creator.description_grade'),
-        default = farm.group['grade'] or 0,
-        required = true,
-        searchable = true
-    }})
+    local input =
+        lib.inputDialog(
+        title,
+        {
+            {
+                type = "number",
+                label = locale("creator.grade"),
+                description = locale("creator.description_grade"),
+                default = farm.group["grade"] or 0,
+                required = true,
+                searchable = true
+            }
+        }
+    )
     if input then
-        farm.group['grade'] = tostring(input[1])
+        farm.group["grade"] = tostring(input[1])
         Farms[key] = farm
     end
     args.callback(key)
 end
 
 local function selItemInput(args)
-    return lib.inputDialog(locale('actions.item.change'), {{
-        type = 'select',
-        label = locale('items.name'),
-        description = locale('items.description_name'),
-        default = args['itemKey'],
-        options = Utils.GetBaseItems(),
-        required = true,
-        searchable = true,
-        clearable = true
-    }})
+    return lib.inputDialog(
+        locale("actions.item.change"),
+        {
+            {
+                type = "select",
+                label = locale("items.name"),
+                description = locale("items.description_name"),
+                default = args["itemKey"],
+                options = Utils.GetBaseItems(),
+                required = true,
+                searchable = true,
+                clearable = true
+            }
+        }
+    )
 end
 
 local function setItem(args)
@@ -247,35 +304,49 @@ local function setItem(args)
             farm.config.items[input[1]] = temp
         end
     end
-    args.callback({
-        key = args.farmKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey
+        }
+    )
 end
 
 local function selMinMaxInput(args)
-    local input = lib.inputDialog(locale('actions.item.minmax'), {{
-        type = 'number',
-        label = locale('items.min'),
-        description = locale('items.description_min'),
-        default = args.min or 0,
-        required = true
-    }, {
-        type = 'number',
-        label = locale('items.max'),
-        description = locale('items.description_max'),
-        default = args.max or 1,
-        required = true
-    }})
+    local input =
+        lib.inputDialog(
+        locale("actions.item.minmax"),
+        {
+            {
+                type = "number",
+                label = locale("items.min"),
+                description = locale("items.description_min"),
+                default = args.min or 0,
+                required = true
+            },
+            {
+                type = "number",
+                label = locale("items.max"),
+                description = locale("items.description_max"),
+                default = args.max or 1,
+                required = true
+            }
+        }
+    )
     if input then
         if input[2] < input[1] then
-            lib.notify({
-                type = 'error',
-                description = locale('error.invalid_range')
-            })
-            input = selMinMaxInput({
-                min = args.min,
-                max = args.max
-            })
+            lib.notify(
+                {
+                    type = "error",
+                    description = locale("error.invalid_range")
+                }
+            )
+            input =
+                selMinMaxInput(
+                {
+                    min = args.min,
+                    max = args.max
+                }
+            )
         end
         return input
     end
@@ -288,111 +359,150 @@ local function setMinMax(args)
         item.min = tonumber(input[1])
         item.max = tonumber(input[2])
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function setRandom(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
-    local input = lib.inputDialog(locale('actions.item.random'), {{
-        type = 'checkbox',
-        label = locale('actions.item.random'),
-        description = locale('actions.item.description_random'),
-        checked = item.randomRoute
-    }})
+    local input =
+        lib.inputDialog(
+        locale("actions.item.random"),
+        {
+            {
+                type = "checkbox",
+                label = locale("actions.item.random"),
+                description = locale("actions.item.description_random"),
+                checked = item.randomRoute
+            }
+        }
+    )
     if input then
         item.randomRoute = input[1] or false
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function setUnlimited(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
-    local input = lib.inputDialog(locale('actions.item.unlimited'), {{
-        type = 'checkbox',
-        label = locale('actions.item.unlimited'),
-        description = locale('actions.item.description_unlimited'),
-        checked = item.unlimited
-    }})
+    local input =
+        lib.inputDialog(
+        locale("actions.item.unlimited"),
+        {
+            {
+                type = "checkbox",
+                label = locale("actions.item.unlimited"),
+                description = locale("actions.item.description_unlimited"),
+                checked = item.unlimited
+            }
+        }
+    )
     if input then
         item.unlimited = input[1] or false
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function setAnimation(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     if Config.UseEmoteMenu then
-        local input = lib.inputDialog(locale('actions.item.animation'), {{
-            type = 'input',
-            label = locale('actions.item.animation'),
-            description = locale('actions.item.description_anim_name'),
-            default = type(item.animation) ~= 'table' and item.animation or '',
-            required = true
-        }})
+        local input =
+            lib.inputDialog(
+            locale("actions.item.animation"),
+            {
+                {
+                    type = "input",
+                    label = locale("actions.item.animation"),
+                    description = locale("actions.item.description_anim_name"),
+                    default = type(item.animation) ~= "table" and item.animation or "",
+                    required = true
+                }
+            }
+        )
         if input then
             item.animation = input[1]
         end
     else
-        local input = lib.inputDialog(locale('items.animation'), {{
-            type = 'input',
-            label = locale('anim.dict'),
-            default = item.animation.dict or 'amb@prop_human_bum_bin@idle_a',
-            required = true
-        }, {
-            type = 'input',
-            label = locale('anim.anim'),
-            default = item.animation.anim or 'idle_a',
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.inspeed'),
-            default = item.animation.inSpeed or 6.0,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.outspeed'),
-            default = item.animation.outSpeed or -6.0,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.duration'),
-            default = item.animation.duration or -1,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.flag'),
-            default = item.animation.flag or 47,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.rate'),
-            default = item.animation.rate or 0,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.x'),
-            default = item.animation.x or 0,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.y'),
-            default = item.animation.y or 0,
-            required = true
-        }, {
-            type = 'number',
-            label = locale('anim.z'),
-            default = item.animation.z or 0,
-            required = true
-        }})
+        local input =
+            lib.inputDialog(
+            locale("items.animation"),
+            {
+                {
+                    type = "input",
+                    label = locale("anim.dict"),
+                    default = item.animation.dict or "amb@prop_human_bum_bin@idle_a",
+                    required = true
+                },
+                {
+                    type = "input",
+                    label = locale("anim.anim"),
+                    default = item.animation.anim or "idle_a",
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.inspeed"),
+                    default = item.animation.inSpeed or 6.0,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.outspeed"),
+                    default = item.animation.outSpeed or -6.0,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.duration"),
+                    default = item.animation.duration or -1,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.flag"),
+                    default = item.animation.flag or 47,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.rate"),
+                    default = item.animation.rate or 0,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.x"),
+                    default = item.animation.x or 0,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.y"),
+                    default = item.animation.y or 0,
+                    required = true
+                },
+                {
+                    type = "number",
+                    label = locale("anim.z"),
+                    default = item.animation.z or 0,
+                    required = true
+                }
+            }
+        )
         if input then
             local _anim = item.animation or {}
             _anim.dict = input[1]
@@ -409,57 +519,62 @@ local function setAnimation(args)
             return true, item
         end
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function pointMenu(args)
     local ctx = {
-        id = 'point_item',
-        menu = 'list_points',
+        id = "point_item",
+        menu = "list_points",
         title = args.name,
-
-        options = {{
-            title = locale('actions.point.change_location'),
-            description = locale('actions.point.description_change_location'),
-            icon = 'location-dot',
-            iconAnimation = Config.IconAnimation,
-            onSelect = changePointLocation,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                pointKey = args.pointKey,
-                callback = pointMenu
+        options = {
+            {
+                title = locale("actions.point.change_location"),
+                description = locale("actions.point.description_change_location"),
+                icon = "location-dot",
+                iconAnimation = Config.IconAnimation,
+                onSelect = changePointLocation,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    pointKey = args.pointKey,
+                    callback = pointMenu
+                }
+            },
+            {
+                title = locale("actions.teleport"),
+                description = locale("actions.description_teleport"),
+                icon = "location-dot",
+                iconAnimation = Config.IconAnimation,
+                onSelect = teleportToPoint,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    pointKey = args.pointKey,
+                    callback = pointMenu
+                }
+            },
+            {
+                title = locale("actions.delete"),
+                description = locale("actions.description_delete", locale("actions.point")),
+                icon = "trash",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ColorScheme.danger,
+                onSelect = deletePoint,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    pointKey = args.pointKey,
+                    name = args.name,
+                    callback = listPoints
+                }
             }
-        }, {
-            title = locale('actions.teleport'),
-            description = locale('actions.description_teleport'),
-            icon = 'location-dot',
-            iconAnimation = Config.IconAnimation,
-            onSelect = teleportToPoint,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                pointKey = args.pointKey,
-                callback = pointMenu
-            }
-        }, {
-            title = locale('actions.delete'),
-            description = locale('actions.description_delete', locale('actions.point')),
-            icon = 'trash',
-            iconAnimation = Config.IconAnimation,
-            iconColor = ColorScheme.danger,
-            onSelect = deletePoint,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                pointKey = args.pointKey,
-                name = args.name,
-                callback = listPoints
-            }
-        }}
+        }
     }
     lib.registerContext(ctx)
     lib.showContext(ctx.id)
@@ -472,47 +587,53 @@ local function addPoints(args)
     while keepLoop do
         Wait(0)
         local result = Utils.GetPedCoords()
-        keepLoop = result.result == 'choose'
+        keepLoop = result.result == "choose"
         if keepLoop then
             item.points[#item.points + 1] = result.coords
-            lib.notify({
-                type = 'success',
-                description = 'Ponto adicionado.'
-            })
+            lib.notify(
+                {
+                    type = "success",
+                    description = locale("actions.point.add")
+                }
+            )
         end
     end
     Farms[args.farmKey].config.items[args.itemKey] = item
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 function listPoints(args)
     local ctx = {
-        id = 'list_points',
-        menu = 'action_item',
-        title = locale('menus.points', Items[args.itemKey].label),
-        options = {{
-            title = locale('actions.add_point'),
-            description = locale('actions.description_add_point'),
-            icon = 'square-plus',
-            iconAnimation = Config.IconAnimation,
-            onSelect = addPoints,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = listPoints
+        id = "list_points",
+        menu = "action_item",
+        title = locale("menus.points", Items[args.itemKey].label),
+        options = {
+            {
+                title = locale("actions.add_point"),
+                description = locale("actions.description_add_point"),
+                icon = "square-plus",
+                iconAnimation = Config.IconAnimation,
+                onSelect = addPoints,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = listPoints
+                }
             }
-        }}
+        }
     }
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     for k, v in pairs(item.points) do
         ctx.options[#ctx.options + 1] = {
             title = Utils.GetLocationFormatted(v, k),
-            description = string.format('X: %.2f, Y: %.2f, Z: %.2f', v.x, v.y, v.z),
-            icon = 'map-pin',
+            description = string.format("X: %.2f, Y: %.2f, Z: %.2f", v.x, v.y, v.z),
+            icon = "map-pin",
             iconAnimation = Config.IconAnimation,
             arrow = true,
             onSelect = pointMenu,
@@ -533,8 +654,8 @@ local function addExtraItem(args)
     local item = farm.config.items[args.itemKey]
     local input = selItemInput(args)
     if input then
-        if not item['extraItems'] then
-            item['extraItems'] = {}
+        if not item["extraItems"] then
+            item["extraItems"] = {}
         end
         item.extraItems[input[1]] = {
             min = 0,
@@ -543,76 +664,84 @@ local function addExtraItem(args)
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
 end
 
 local function setMinMaxExtraItem(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
-    local extraItem = item['extraItems'][args.extraItemKey]
+    local extraItem = item["extraItems"][args.extraItemKey]
     local input = selMinMaxInput({min = extraItem.min, max = extraItem.max})
     if input then
-        item['extraItems'][args.extraItemKey].min = input[1] or 0
-        item['extraItems'][args.extraItemKey].max = input[2] or 1
+        item["extraItems"][args.extraItemKey].min = input[1] or 0
+        item["extraItems"][args.extraItemKey].max = input[2] or 1
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
     end
-    args.callback({
-        farmKey = args.farmKey,
-        itemKey = args.itemKey,
-        extraItemKey = args.extraItemKey
-    })
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey,
+            extraItemKey = args.extraItemKey
+        }
+    )
 end
 
 local function extraItemActionMenu(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
-    local extraItem = item['extraItems'][args.extraItemKey]
+    local extraItem = item["extraItems"][args.extraItemKey]
     local ctx = {
-        id = 'extra_item_action',
-        menu = 'list_extra_items',
-        title = locale('menus.extra_items', Items[args.itemKey].label),
-        description = locale('menu.description_extra_items', extraItem.min, extraItem.max),
-        options = {{
-            title = locale('actions.item.change'),
-            description = locale('actions.item.description_change'),
-            icon = 'file-pen',
-            iconAnimation = Config.IconAnimation,
-            onSelect = addExtraItem,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = extraItemActionMenu
+        id = "extra_item_action",
+        menu = "list_extra_items",
+        title = locale("menus.extra_items", Items[args.itemKey].label),
+        description = locale("menu.description_extra_items", extraItem.min, extraItem.max),
+        options = {
+            {
+                title = locale("actions.item.change"),
+                description = locale("actions.item.description_change"),
+                icon = "file-pen",
+                iconAnimation = Config.IconAnimation,
+                onSelect = addExtraItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = extraItemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.minmax"),
+                description = locale("actions.item.description_minmax"),
+                icon = "up-down",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setMinMaxExtraItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    extraItemKey = args.extraItemKey,
+                    callback = extraItemActionMenu
+                }
+            },
+            {
+                title = locale("actions.delete"),
+                description = locale("actions.description_delete", locale("actions.item")),
+                icon = "trash",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ColorScheme.danger,
+                onSelect = deleteExtraItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    extraItemKey = args.extraItemKey,
+                    callback = listExtraItems
+                }
             }
-        },{
-            title = locale('actions.item.minmax'),
-            description = locale('actions.item.description_minmax'),
-            icon = 'up-down',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setMinMaxExtraItem,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                extraItemKey = args.extraItemKey,
-                callback = extraItemActionMenu
-            }
-        }, {
-            title = locale('actions.delete'),
-            description = locale('actions.description_delete', locale('actions.item')),
-            icon = 'trash',
-            iconAnimation = Config.IconAnimation,
-            iconColor = ColorScheme.danger,
-            onSelect = deleteExtraItem,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                extraItemKey = args.extraItemKey,
-                callback = listExtraItems
-            }
-        }}
+        }
     }
     lib.registerContext(ctx)
     lib.showContext(ctx.id)
@@ -622,15 +751,15 @@ function listExtraItems(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local ctx = {
-        id = 'list_extra_items',
-        menu = 'action_item',
-        title = locale('menus.extra_items', Items[args.itemKey].label),
+        id = "list_extra_items",
+        menu = "action_item",
+        title = locale("menus.extra_items", Items[args.itemKey].label),
         options = {}
     }
     ctx.options[#ctx.options + 1] = {
-        title = locale('actions.item.add_extra_item'),
-        description = locale('actions.item.description_add_extra_item'),
-        icon = 'square-plus',
+        title = locale("actions.item.add_extra_item"),
+        description = locale("actions.item.description_add_extra_item"),
+        icon = "square-plus",
         iconAnimation = Config.IconAnimation,
         onSelect = addExtraItem,
         args = {
@@ -642,8 +771,8 @@ function listExtraItems(args)
     for k, v in pairs(item.extraItems or {}) do
         ctx.options[#ctx.options + 1] = {
             title = Items[k].label,
-            description = locale('items.extra_description', v.min, v.max),
-            icon = string.format('%s/%s.png', ImageURL, Items[k].name),
+            description = locale("items.extra_description", v.min, v.max),
+            icon = string.format("%s/%s.png", ImageURL, Items[k].name),
             iconAnimation = Config.IconAnimation,
             onSelect = extraItemActionMenu,
             args = {
@@ -661,102 +790,115 @@ end
 local function itemActionMenu(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local ctx = {
-        id = 'action_item',
+        id = "action_item",
         title = Items[args.itemKey].label,
-        description = locale('actions.item.description_menu', item.randomRoute and 'Sim' or 'Não', item.min or 0,
-            item.max or 1),
-        menu = 'items_farm',
-        options = {{
-            title = locale('actions.item.change'),
-            description = locale('actions.item.description_change'),
-            icon = 'file-pen',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setItem,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = ListItems
+        description = locale(
+            "actions.item.description_menu",
+            item.randomRoute and locale("misc.yes") or locale("misc.no"),
+            item.min or 0,
+            item.max or 1
+        ),
+        menu = "items_farm",
+        options = {
+            {
+                title = locale("actions.item.change"),
+                description = locale("actions.item.description_change"),
+                icon = "file-pen",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = ListItems
+                }
+            },
+            {
+                title = locale("actions.item.minmax"),
+                description = locale("actions.item.description_minmax"),
+                icon = "up-down",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setMinMax,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.random"),
+                description = locale("actions.item.description_random"),
+                icon = "shuffle",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setRandom,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.unlimited"),
+                description = locale("actions.item.description_unlimited"),
+                icon = "infinity",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setUnlimited,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.animation"),
+                description = locale("actions.item.description_animation"),
+                icon = "person-walking",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setAnimation,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.points"),
+                description = locale("actions.item.description_points"),
+                icon = "location-crosshairs",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = listPoints,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey
+                }
+            },
+            {
+                title = locale("actions.item.extraItems"),
+                description = locale("actions.item.description_extraItems"),
+                icon = "list",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = listExtraItems,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey
+                }
+            },
+            {
+                title = locale("actions.delete"),
+                description = locale("actions.description_delete", locale("actions.item")),
+                icon = "trash",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ColorScheme.danger,
+                onSelect = deleteItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = ListItems,
+                    callbackCancel = itemActionMenu
+                }
             }
-        }, {
-            title = locale('actions.item.minmax'),
-            description = locale('actions.item.description_minmax'),
-            icon = 'up-down',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setMinMax,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = itemActionMenu
-            }
-        }, {
-            title = locale('actions.item.random'),
-            description = locale('actions.item.description_random'),
-            icon = 'shuffle',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setRandom,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = itemActionMenu
-            }
-        }, {
-            title = locale('actions.item.unlimited'),
-            description = locale('actions.item.description_unlimited'),
-            icon = 'infinity',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setUnlimited,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = itemActionMenu
-            }
-        }, {
-            title = locale('actions.item.animation'),
-            description = locale('actions.item.description_animation'),
-            icon = 'person-walking',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setAnimation,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = itemActionMenu
-            }
-        }, {
-            title = locale('actions.item.points'),
-            description = locale('actions.item.description_points'),
-            icon = 'location-crosshairs',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = listPoints,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey
-            }
-        }, {
-            title = locale('actions.item.extraItems'),
-            description = locale('actions.item.description_extraItems'),
-            icon = 'list',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = listExtraItems,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey
-            }
-        }, {
-            title = locale('actions.delete'),
-            description = locale('actions.description_delete', locale('actions.item')),
-            icon = 'trash',
-            iconAnimation = Config.IconAnimation,
-            iconColor = ColorScheme.danger,
-            onSelect = deleteItem,
-            args = {
-                farmKey = args.farmKey,
-                itemKey = args.itemKey,
-                callback = ListItems,
-                callbackCancel = itemActionMenu
-            }
-        }}
+        }
     }
 
     lib.registerContext(ctx)
@@ -764,165 +906,200 @@ local function itemActionMenu(args)
 end
 
 function ListItems(args)
-    local farm = Farms[args.key]
+    local farm = Farms[args.farmKey]
     local ctx = {
-        id = 'items_farm',
-        title = locale('menus.items'),
-        menu = 'action_farm',
+        id = "items_farm",
+        title = locale("menus.items"),
+        menu = "action_farm",
         description = farm.name,
-        options = {{
-            title = locale('actions.item.create'),
-            description = locale('actions.item.description_create'),
-            icon = 'square-plus',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = setItem,
-            args = {
-                farmKey = args.key,
-                callback = ListItems
-            }
-        }}
-    }
-    for k, v in pairs(farm.config.items) do
-        ctx.options[#ctx.options + 1] = {
-            title = Items[k].label,
-            icon = string.format('%s/%s.png', ImageURL, Items[k].name),
-            image = string.format('%s/%s.png', ImageURL, Items[k].name),
-            metadata = Utils.GetItemMetadata(Items[k]),
-            description = Items[k].description,
-            onSelect = itemActionMenu,
-            args = {
-                itemKey = k,
-                farmKey = args.key
+        options = {
+            {
+                title = locale("actions.item.create"),
+                description = locale("actions.item.description_create"),
+                icon = "square-plus",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = setItem,
+                args = {
+                    farmKey = args.farmKey,
+                    callback = ListItems
+                }
             }
         }
+    }
+    for k, v in pairs(farm.config.items) do
+        if Items[k] then
+            ctx.options[#ctx.options + 1] = {
+                title = Items[k].label,
+                icon = string.format("%s/%s.png", ImageURL, Items[k].name),
+                image = string.format("%s/%s.png", ImageURL, Items[k].name),
+                metadata = Utils.GetItemMetadata(Items[k]),
+                description = Items[k].description,
+                onSelect = itemActionMenu,
+                args = {
+                    itemKey = k,
+                    farmKey = args.farmKey
+                }
+            }
+        else
+            ctx.options[#ctx.options + 1] = {
+                title = locale("error.invalid_item", k),
+                description = locale("error.invalid_item_description"),
+                icon = "trash",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ColorScheme.danger,
+                onSelect = deleteItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = k,
+                    callback = ListItems,
+                    callbackCancel = ListItems
+                }
+            }
+        end
     end
     lib.registerContext(ctx)
     lib.showContext(ctx.id)
 end
 
 local function saveFarm(args)
-    TriggerServerEvent('mri_Qfarm:server:SaveFarm', Farms[args.key], args.key)
-    args.callback(args.key)
+    TriggerServerEvent("mri_Qfarm:server:SaveFarm", Farms[args.farmKey], args.farmKey)
+    args.callback(args.farmKey)
 end
 
 local function actionMenu(key)
     local farm = Farms[key]
     local groupName
-    local grade = '0'
+    local grade = "0"
     local groups = Utils.GetBaseGroups(true)
     local disableGradeSet = false
-    if farm.group['name'] then
-        groupName = Utils.GetGroupsLabel(farm.group['name'])
+    if farm.group["name"] then
+        groupName = Utils.GetGroupsLabel(farm.group["name"])
     else
         disableGradeSet = true
     end
-    if farm.group['grade'] then
-        grade = farm.group['grade']
+    if farm.group["grade"] then
+        grade = farm.group["grade"]
     end
-    local locationText = locale('actions.farm.change_location')
+    local locationText = locale("actions.farm.change_location")
     if farm.config.start.location == nil then
-        locationText = locale('actions.farm.set_location')
+        locationText = locale("actions.farm.set_location")
     end
     local ctx = {
-        id = 'action_farm',
-        description = string.format('%s: %s, %s: %s', locale('creator.group'), groupName, locale('creator.grade'), grade),
+        id = "action_farm",
+        description = string.format(
+            "%s: %s, %s: %s",
+            locale("creator.group"),
+            groupName,
+            locale("creator.grade"),
+            grade
+        ),
         title = farm.name:upper(),
-        menu = 'list_farms',
-        options = {{
-            title = locale('actions.farm.rename'),
-            description = locale('actions.farm.description_rename'),
-            icon = 'file-pen',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setFarmName,
-            args = {
-                key = key,
-                callback = actionMenu
+        menu = "list_farms",
+        options = {
+            {
+                title = locale("actions.farm.rename"),
+                description = locale("actions.farm.description_rename"),
+                icon = "file-pen",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setFarmName,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("creator.group"),
+                description = locale("creator.description_group"),
+                icon = "users",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setFarmGroup,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("creator.grade"),
+                description = locale("creator.description_grade"),
+                icon = "list-ol",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setFarmGrade,
+                disabled = disableGradeSet,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locationText,
+                icon = "location-dot",
+                iconAnimation = Config.IconAnimation,
+                onSelect = changeFarmLocation,
+                description = locale("actions.farm.description_location"),
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.farm.items"),
+                description = locale("actions.farm.description_items"),
+                icon = "rectangle-list",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = ListItems,
+                args = {
+                    farmKey = key
+                }
+            },
+            {
+                title = locale("actions.teleport"),
+                description = locale("actions.description_teleport"),
+                icon = "location-dot",
+                iconAnimation = Config.IconAnimation,
+                onSelect = teleportToFarm,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.export"),
+                description = locale("actions.description_export", locale("actions.farm")),
+                icon = "copy",
+                iconAnimation = Config.IconAnimation,
+                onSelect = exportFarm,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.save"),
+                description = locale("actions.description_save"),
+                icon = "floppy-disk",
+                iconAnimation = Config.IconAnimation,
+                onSelect = saveFarm,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.delete"),
+                description = locale("actions.description_delete", locale("actions.farm")),
+                icon = "trash",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ColorScheme.danger,
+                onSelect = deleteFarm,
+                args = {
+                    farmKey = key,
+                    callback = ListFarm,
+                    callbackCancel = actionMenu
+                }
             }
-        }, {
-            title = locale('creator.group'),
-            description = locale('creator.description_group'),
-            icon = 'users',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setFarmGroup,
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locale('creator.grade'),
-            description = locale('creator.description_grade'),
-            icon = 'list-ol',
-            iconAnimation = Config.IconAnimation,
-            onSelect = setFarmGrade,
-            disabled = disableGradeSet,
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locationText,
-            icon = 'location-dot',
-            iconAnimation = Config.IconAnimation,
-            onSelect = changeFarmLocation,
-            description = locale('actions.farm.description_location'),
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locale('actions.farm.items'),
-            description = locale('actions.farm.description_items'),
-            icon = 'rectangle-list',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = ListItems,
-            args = {
-                key = key
-            }
-        }, {
-            title = locale('actions.teleport'),
-            description = locale('actions.description_teleport'),
-            icon = 'location-dot',
-            iconAnimation = Config.IconAnimation,
-            onSelect = teleportToFarm,
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locale('actions.export'),
-            description = locale('actions.description_export', locale('actions.farm')),
-            icon = 'copy',
-            iconAnimation = Config.IconAnimation,
-            onSelect = exportFarm,
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locale('actions.save'),
-            description = locale('actions.description_save'),
-            icon = 'floppy-disk',
-            iconAnimation = Config.IconAnimation,
-            onSelect = saveFarm,
-            args = {
-                key = key,
-                callback = actionMenu
-            }
-        }, {
-            title = locale('actions.delete'),
-            description = locale('actions.description_delete', locale('actions.farm')),
-            icon = 'trash',
-            iconAnimation = Config.IconAnimation,
-            iconColor = ColorScheme.danger,
-            onSelect = deleteFarm,
-            args = {
-                key = key,
-                callback = ListFarm,
-                callbackCancel = actionMenu
-            }
-        }}
+        }
     }
     lib.registerContext(ctx)
     lib.showContext(ctx.id)
@@ -930,21 +1107,21 @@ end
 
 function ListFarm()
     local ctx = {
-        id = 'list_farms',
-        menu = 'menu_farm',
-        title = 'Listar Farms',
-        description = locale('actions.farm.description_title', #Farms),
+        id = "list_farms",
+        menu = "menu_farm",
+        title = "Listar Farms",
+        description = locale("actions.farm.description_title", #Farms),
         options = {}
     }
     for k, v in pairs(Farms) do
-        local groupName = locale('creator.no_group')
-        if v.group['name'] then
-            groupName = Utils.GetGroupsLabel(v.group['name'])
+        local groupName = locale("creator.no_group")
+        if v.group["name"] then
+            groupName = Utils.GetGroupsLabel(v.group["name"])
         end
-        local description = locale('menus.description_farm', groupName)
+        local description = locale("menus.description_farm", groupName)
         ctx.options[#ctx.options + 1] = {
             title = v.name:upper(),
-            icon = 'warehouse',
+            icon = "warehouse",
             iconAnimation = Config.IconAnimation,
             description = description,
             metadata = Utils.GetMetadataFromFarm(k),
@@ -960,45 +1137,53 @@ end
 local function manageFarms()
     Items = exports.ox_inventory:Items()
     local ctx = {
-        id = 'menu_farm',
-        menu = 'menu_gerencial',
-        title = locale('actions.farm.title'),
-        description = locale('actions.farm.description_title', #Farms),
-        options = {{
-            title = locale('actions.farm.create'),
-            description = locale('actions.farm.description_create'),
-            icon = 'square-plus',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = setFarmName,
-            args = {
-                callback = ListFarm
+        id = "menu_farm",
+        menu = "menu_gerencial",
+        title = locale("actions.farm.title"),
+        description = locale("actions.farm.description_title", #Farms),
+        options = {
+            {
+                title = locale("actions.farm.create"),
+                description = locale("actions.farm.description_create"),
+                icon = "square-plus",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = setFarmName,
+                args = {
+                    callback = ListFarm
+                }
+            },
+            {
+                title = locale("actions.farm.list"),
+                description = locale("actions.farm.description_list"),
+                icon = "list-ul",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = ListFarm
             }
-        }, {
-            title = locale('actions.farm.list'),
-            description = locale('actions.farm.description_list'),
-            icon = 'list-ul',
-            iconAnimation = Config.IconAnimation,
-            arrow = true,
-            onSelect = ListFarm
-        }}
+        }
     }
     lib.registerContext(ctx)
     lib.showContext(ctx.id)
 end
 
-if GetResourceState('mri_Qbox') == 'started' then
-    exports['mri_Qbox']:AddManageMenu({
-        title = 'Farms',
-        description = 'Crie ou gerencie rotas de farm do servidor.',
-        icon = 'tools',
-        iconAnimation = 'fade',
-        arrow = true,
-        onSelectFunction = manageFarms
-    })
+if GetResourceState("mri_Qbox") == "started" then
+    exports["mri_Qbox"]:AddManageMenu(
+        {
+            title = locale("creator.title"),
+            description = locale("creator.description_title"),
+            icon = "tools",
+            iconAnimation = "fade",
+            arrow = true,
+            onSelectFunction = manageFarms
+        }
+    )
 else
-    lib.callback.register('mri_Qfarm:manageFarmsMenu', function()
-        manageFarms()
-        return true
-    end)
+    lib.callback.register(
+        "mri_Qfarm:manageFarmsMenu",
+        function()
+            manageFarms()
+            return true
+        end
+    )
 end

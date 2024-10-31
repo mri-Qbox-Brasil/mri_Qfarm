@@ -2,10 +2,10 @@ local QBCore = exports["qb-core"]:GetCoreObject()
 Farms = GlobalState.Farms or {}
 Items = exports.ox_inventory:Items()
 
-local SELECT_DATA = 'SELECT * FROM mri_qfarm'
-local INSERT_DATA = 'INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)'
-local UPDATE_DATA = 'UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?'
-local DELETE_DATA = 'DELETE FROM mri_qfarm WHERE farmId = ?'
+local SELECT_DATA = "SELECT * FROM mri_qfarm"
+local INSERT_DATA = "INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)"
+local UPDATE_DATA = "UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?"
+local DELETE_DATA = "DELETE FROM mri_qfarm WHERE farmId = ?"
 
 local function itemAdd(source, item, amount)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -16,11 +16,11 @@ local function itemAdd(source, item, amount)
 end
 
 local function dispatchEvents(source, response)
-    GlobalState:set('Farms', Farms, true)
+    GlobalState:set("Farms", Farms, true)
     Wait(2000)
-    TriggerClientEvent('mri_Qfarm:client:LoadFarms', -1)
+    TriggerClientEvent("mri_Qfarm:client:LoadFarms", -1)
     if response then
-        TriggerClientEvent('ox_lib:notify', source, response)
+        TriggerClientEvent("ox_lib:notify", source, response)
     end
 end
 
@@ -43,115 +43,135 @@ local function cleanNullPoints(config)
     return config
 end
 
-RegisterNetEvent("mri_Qfarm:server:getRewardItem", function(itemName, farmId)
-    local src = source
-    local cfg = nil
+RegisterNetEvent(
+    "mri_Qfarm:server:getRewardItem",
+    function(itemName, farmId)
+        local src = source
+        local cfg = nil
 
-    for k, v in pairs(Farms) do
-        if v.farmId == farmId then
-            cfg = v
-            break
-        end
-    end
-
-    local msg = nil
-    if not cfg then
-        msg = locale("error.farm_not_found", farmId)
-        print(msg)
-        TriggerClientEvent("QBCore:Notify", src, msg, 'error')
-        return
-    end
-
-    if (not Items[itemName]) then
-        print(string.format("Item: '%s' nao cadastrado!", itemName))
-        TriggerClientEvent("QBCore:Notify", src, string.format("Erro ao processar item: %s", itemName), 'error')
-        return
-    end
-
-    local itemCfg = cfg.config.items[itemName]
-
-    if (not itemCfg) then
-        print(string.format("Item: '%s' nao configurado!", itemName))
-        TriggerClientEvent("QBCore:Notify", src, string.format("Erro ao processar item: %s", itemName), 'error')
-        return
-    end
-
-    local qtd = math.random(itemCfg.min or 0, itemCfg.max or 1)
-    itemAdd(src, itemName, qtd)
-    if (itemCfg['extraItems']) then
-        for name, config in pairs(itemCfg.extraItems) do
-            itemAdd(src, name, math.random(config.min, config.max))
-        end
-    end
-end)
-
-RegisterNetEvent("mri_Qfarm:server:SaveFarm", function(farm)
-    local source = source
-    local response = { type = 'success', description = 'Sucesso ao salvar!' }
-    if farm.farmId then
-        local affectedRows = MySQL.Sync.execute(UPDATE_DATA,
-            { farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId })
-        if affectedRows <= 0 then
-            response.type = 'error'
-            response.description = 'Erro ao salvar.'
-        end
-        Farms[locateFarm(farm.farmId)] = farm
-        dispatchEvents(source, response)
-    else
-        local farmId = MySQL.Sync.insert(INSERT_DATA, { farm.name, json.encode(farm.config), json.encode(farm.group) })
-        if farmId <= 0 then
-            response.type = 'error'
-            response.description = 'Erro ao salvar.'
-        else
-            farm.farmId = farmId
-            Farms[#Farms + 1] = farm
-        end
-        dispatchEvents(source, response)
-    end
-end)
-
-RegisterNetEvent("mri_Qfarm:server:DeleteFarm", function(farmId)
-    local source = source
-    local response = { type = 'success', description = 'Farm excluído!' }
-    if not farmId then
-        TriggerClientEvent('ox_lib:notify', source, response)
-        return
-    end
-    local affectedRows = MySQL.Sync.execute(DELETE_DATA, { farmId })
-    if affectedRows <= 0 then
-        response.type = 'error'
-        response.description = 'Erro ao excluir.'
-    end
-    Farms[locateFarm(farmId)] = nil
-    dispatchEvents(source, response)
-end)
-
-AddEventHandler('onResourceStart', function(resource)
-    Wait(200)
-    if resource == GetCurrentResourceName() then
-        local result = MySQL.Sync.fetchAll(SELECT_DATA, {})
-        local farms = {}
-        if result and #result > 0 then
-            for _, row in ipairs(result) do
-                local zone = {
-                    farmId = row.farmId,
-                    name = row.farmName,
-                    config = cleanNullPoints(json.decode(row.farmConfig)),
-                    group = json.decode(row.farmGroup)
-                }
-                farms[_] = zone
+        for k, v in pairs(Farms) do
+            if v.farmId == farmId then
+                cfg = v
+                break
             end
         end
-        Farms = farms
-        dispatchEvents(source)
-    end
-end)
 
-if GetResourceState('mri_Qbox') ~= 'started' then
-    lib.addCommand('managefarms',{
-        help = 'Crie ou gerencie rotas de farm do servidor.',
-        restricted = 'group.admin',
-    }, function(source, args, raw)
-        lib.callback('mri_Qfarm:manageFarmsMenu', source)
-    end)
+        local msg = nil
+        if not cfg then
+            msg = locale("error.farm_not_found", farmId)
+            print(msg)
+            TriggerClientEvent("QBCore:Notify", src, msg, "error")
+            return
+        end
+
+        if (not Items[itemName]) then
+            print(locale("error.item_not_found", itemName))
+            TriggerClientEvent("QBCore:Notify", src, locale("error.item_not_found", itemName), "error")
+            return
+        end
+
+        local itemCfg = cfg.config.items[itemName]
+
+        if (not itemCfg) then
+            print(locale("error.item_cfg_not_found", itemName))
+            TriggerClientEvent("QBCore:Notify", src, locale("error.item_cfg_not_found", itemName), "error")
+            return
+        end
+
+        local qtd = math.random(itemCfg.min or 0, itemCfg.max or 1)
+        itemAdd(src, itemName, qtd)
+        if (itemCfg["extraItems"]) then
+            for name, config in pairs(itemCfg.extraItems) do
+                itemAdd(src, name, math.random(config.min, config.max))
+            end
+        end
+    end
+)
+
+RegisterNetEvent(
+    "mri_Qfarm:server:SaveFarm",
+    function(farm)
+        local source = source
+        local response = {type = "success", description = locale("actions.saved") }
+        if farm.farmId then
+            local affectedRows =
+                MySQL.Sync.execute(
+                UPDATE_DATA,
+                {farm.name, json.encode(farm.config), json.encode(farm.group), farm.farmId}
+            )
+            if affectedRows <= 0 then
+                response.type = "error"
+                response.description = locale("actions.not_saved")
+            end
+            Farms[locateFarm(farm.farmId)] = farm
+            dispatchEvents(source, response)
+        else
+            local farmId =
+                MySQL.Sync.insert(INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)})
+            if farmId <= 0 then
+                response.type = "error"
+                response.description = locale("actions.not_saved")
+            else
+                farm.farmId = farmId
+                Farms[#Farms + 1] = farm
+            end
+            dispatchEvents(source, response)
+        end
+    end
+)
+
+RegisterNetEvent(
+    "mri_Qfarm:server:DeleteFarm",
+    function(farmId)
+        local source = source
+        local response = {type = "success", description = locale("actions.deleted")}
+        if not farmId then
+            TriggerClientEvent("ox_lib:notify", source, response)
+            return
+        end
+        local affectedRows = MySQL.Sync.execute(DELETE_DATA, {farmId})
+        if affectedRows <= 0 then
+            response.type = "error"
+            response.description = locale("actions.delete_error", farmId)
+        end
+        Farms[locateFarm(farmId)] = nil
+        dispatchEvents(source, response)
+    end
+)
+
+AddEventHandler(
+    "onResourceStart",
+    function(resource)
+        Wait(200)
+        if resource == GetCurrentResourceName() then
+            local result = MySQL.Sync.fetchAll(SELECT_DATA, {})
+            local farms = {}
+            if result and #result > 0 then
+                for _, row in ipairs(result) do
+                    local zone = {
+                        farmId = row.farmId,
+                        name = row.farmName,
+                        config = cleanNullPoints(json.decode(row.farmConfig)),
+                        group = json.decode(row.farmGroup)
+                    }
+                    farms[_] = zone
+                end
+            end
+            Farms = farms
+            dispatchEvents(source)
+        end
+    end
+)
+
+if GetResourceState("mri_Qbox") ~= "started" then
+    lib.addCommand(
+        "managefarms",
+        {
+            help = locale("creator.description_title"),
+            restricted = "group.admin"
+        },
+        function(source, args, raw)
+            lib.callback("mri_Qfarm:manageFarmsMenu", source)
+        end
+    )
 end
