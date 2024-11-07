@@ -402,7 +402,7 @@ local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
     if requiredGroup then
         for i = 1, #requiredGroup do
             if requiredGroup[i] == PlayerGroupData.name then
-                return not PlayerGroupData.grade and true or requiredGrade <= PlayerGroupData.grade.level
+                return not PlayerGroupData.grade and true or tonumber(requiredGrade) <= PlayerGroupData.grade.level
             end
         end
     end
