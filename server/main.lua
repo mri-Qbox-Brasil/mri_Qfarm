@@ -1,6 +1,7 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
 Farms = GlobalState.Farms or {}
-Items = exports.ox_inventory:Items()
+local ox_inventory = exports.ox_inventory
+Items = ox_inventory:Items()
 
 local SELECT_DATA = "SELECT * FROM mri_qfarm"
 local INSERT_DATA = "INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)"
@@ -8,10 +9,8 @@ local UPDATE_DATA = "UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGrou
 local DELETE_DATA = "DELETE FROM mri_qfarm WHERE farmId = ?"
 
 local function itemAdd(source, item, amount)
-    local Player = QBCore.Functions.GetPlayer(source)
     if (amount > 0) then
-        Player.Functions.AddItem(item, amount, false)
-        TriggerClientEvent("inventory:client:ItemBox", source, QBCore.Shared.Items[item], "add")
+        ox_inventory:AddItem(source, item, amount)
     end
 end
 
@@ -20,7 +19,7 @@ local function dispatchEvents(source, response)
     Wait(2000)
     TriggerClientEvent("mri_Qfarm:client:LoadFarms", -1)
     if response then
-        TriggerClientEvent("ox_lib:notify", source, response)
+        lib.notify(source, response)
     end
 end
 
@@ -43,9 +42,30 @@ local function cleanNullPoints(config)
     return config
 end
 
-RegisterNetEvent(
+lib.callback.register(
+    "mri_Qfarm:server:UseItem",
+    function(source, item)
+        local toolItem = exports.ox_inventory:Search(source, "slots", item.collectItem.name)
+
+        if toolItem then
+            for k, v in pairs(toolItem) do
+                if v.metadata.durability >= item.collectItem.durability then
+                    toolItem = v
+                    break
+                end
+            end
+        else
+            return
+        end
+
+        ox_inventory:SetDurability(source, toolItem.slot, toolItem.metadata.durability - item.collectItem.durability)
+        return true
+    end
+)
+
+lib.callback.register(
     "mri_Qfarm:server:getRewardItem",
-    function(itemName, farmId)
+    function(source, itemName, farmId)
         local src = source
         local cfg = nil
 
@@ -60,21 +80,23 @@ RegisterNetEvent(
         if not cfg then
             msg = locale("error.farm_not_found", farmId)
             print(msg)
-            TriggerClientEvent("QBCore:Notify", src, msg, "error")
+            lib.notify(src, {type = "error", description = msg})
             return
         end
 
         if (not Items[itemName]) then
-            print(locale("error.item_not_found", itemName))
-            TriggerClientEvent("QBCore:Notify", src, locale("error.item_not_found", itemName), "error")
+            msg = locale("error.item_not_found", itemName)
+            print(msg)
+            lib.notify(src, {type = "error", description = msg})
             return
         end
 
         local itemCfg = cfg.config.items[itemName]
 
         if (not itemCfg) then
-            print(locale("error.item_cfg_not_found", itemName))
-            TriggerClientEvent("QBCore:Notify", src, locale("error.item_cfg_not_found", itemName), "error")
+            msg = locale("error.item_cfg_not_found", itemName)
+            print(msg)
+            lib.notify(src, {type = "error", description = msg})
             return
         end
 
@@ -85,14 +107,15 @@ RegisterNetEvent(
                 itemAdd(src, name, math.random(config.min, config.max))
             end
         end
+        return true
     end
 )
 
-RegisterNetEvent(
+lib.callback.register(
     "mri_Qfarm:server:SaveFarm",
-    function(farm)
+    function(source, farm)
         local source = source
-        local response = {type = "success", description = locale("actions.saved") }
+        local response = {type = "success", description = locale("actions.saved")}
         if farm.farmId then
             local affectedRows =
                 MySQL.Sync.execute(
@@ -117,12 +140,13 @@ RegisterNetEvent(
             end
             dispatchEvents(source, response)
         end
+        return true
     end
 )
 
-RegisterNetEvent(
+lib.callback.register(
     "mri_Qfarm:server:DeleteFarm",
-    function(farmId)
+    function(source, farmId)
         local source = source
         local response = {type = "success", description = locale("actions.deleted")}
         if not farmId then
@@ -136,6 +160,7 @@ RegisterNetEvent(
         end
         Farms[locateFarm(farmId)] = nil
         dispatchEvents(source, response)
+        return true
     end
 )
 
@@ -148,13 +173,13 @@ AddEventHandler(
             local farms = {}
             if result and #result > 0 then
                 for _, row in ipairs(result) do
-                    local zone = {
+                    local farm = {
                         farmId = row.farmId,
                         name = row.farmName,
                         config = cleanNullPoints(json.decode(row.farmConfig)),
                         group = json.decode(row.farmGroup)
                     }
-                    farms[_] = zone
+                    farms[_] = farm
                 end
             end
             Farms = farms

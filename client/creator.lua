@@ -21,7 +21,13 @@ local newItem = {
     randomRoute = false,
     unlimited = false,
     points = {},
-    animation = Utils.GetDefaultAnim()
+    animation = Utils.GetDefaultAnim(),
+    collectTime = DefaultCollectTime,
+    collectItem = {
+        name = nil,
+        durability = 0
+    },
+    collectVehicle = nil
 }
 
 local function delete(caption, tableObj, key)
@@ -44,7 +50,7 @@ local function deleteFarm(args)
         args.farmKey
     )
     if result then
-        TriggerServerEvent("mri_Qfarm:server:DeleteFarm", farm.farmId)
+        lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
         args.callback()
     else
         args.callbackCancel(args.farmKey)
@@ -302,6 +308,7 @@ local function setItem(args)
                 farm.config.items[args.itemKey] = nil
             end
             farm.config.items[input[1]] = temp
+            Farms[args.farmKey] = farm
         end
     end
     args.callback(
@@ -358,6 +365,104 @@ local function setMinMax(args)
     if input then
         item.min = tonumber(input[1])
         item.max = tonumber(input[2])
+        Farms[args.farmKey].config.items[args.itemKey] = item
+    end
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
+end
+
+local function setCollectTime(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local input =
+        lib.inputDialog(
+        locale("actions.item.collect_time"),
+        {
+            {
+                type = "number",
+                label = locale("items.collect_time"),
+                description = locale("items.description_collect_time"),
+                default = item.collectTime or DefaultCollectTime,
+                required = true
+            }
+        }
+    )
+
+    if input then
+        item.collectTime = input[1] or DefaultCollectTime
+        Farms[args.farmKey].config.items[args.itemKey] = item
+    end
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
+end
+
+local function setCollectItem(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local collectItem = item["collectItem"] or {}
+    local collectItemName = collectItem["name"]
+    local input =
+        lib.inputDialog(
+        locale("actions.item.collect_item"),
+        {
+            {
+                type = "select",
+                label = locale("items.name"),
+                description = locale("items.description_collect_item"),
+                default = collectItemName or "",
+                options = Utils.GetBaseItems(),
+                searchable = true,
+                clearable = true
+            }
+        }
+    )
+
+    if input then
+        if input[1] then
+            collectItem["name"] = input[1]
+            item["collectItem"] = collectItem
+        else
+            item["collectItem"] = nil
+        end
+        Farms[args.farmKey].config.items[args.itemKey] = item
+    end
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
+end
+
+function setItemDurability(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local input =
+        lib.inputDialog(
+        locale("actions.item.item_durability"),
+        {
+            {
+                type = "number",
+                label = locale("items.durability"),
+                description = locale("items.description_item_durability"),
+                default = item["collectItem"]["durability"] or 0,
+                required = true
+            }
+        }
+    )
+
+    if input then
+        if input[1] then
+            item["collectItem"]["durability"] = input[1]
+        else
+            item["collectItem"]["durability"] = nil
+        end
+        Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -383,6 +488,7 @@ local function setRandom(args)
     )
     if input then
         item.randomRoute = input[1] or false
+        Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -408,6 +514,7 @@ local function setUnlimited(args)
     )
     if input then
         item.unlimited = input[1] or false
+        Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -435,6 +542,7 @@ local function setAnimation(args)
         )
         if input then
             item.animation = input[1]
+            Farms[args.farmKey].config.items[args.itemKey] = item
         end
     else
         local input =
@@ -516,7 +624,7 @@ local function setAnimation(args)
             _anim.y = input[9]
             _anim.z = input[10] or false
             item.animation = _anim
-            return true, item
+            Farms[args.farmKey].config.items[args.itemKey] = item
         end
     end
     args.callback(
@@ -825,6 +933,43 @@ local function itemActionMenu(args)
                 }
             },
             {
+                title = locale("actions.item.collect_time"),
+                description = locale("actions.item.description_collect_time"),
+                icon = "clock",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setCollectTime,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.collect_item"),
+                description = locale("actions.item.description_collect_item"),
+                icon = "screwdriver-wrench",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setCollectItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.item_durability"),
+                description = locale("actions.item.description_item_durability"),
+                icon = "wrench",
+                iconAnimation = Config.IconAnimation,
+                disabled = item["collectItem"] == nil or item["collectItem"]["name"] == nil,
+                onSelect = setItemDurability,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
                 title = locale("actions.item.random"),
                 description = locale("actions.item.description_random"),
                 icon = "shuffle",
@@ -963,7 +1108,7 @@ function ListItems(args)
 end
 
 local function saveFarm(args)
-    TriggerServerEvent("mri_Qfarm:server:SaveFarm", Farms[args.farmKey], args.farmKey)
+    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
     args.callback(args.farmKey)
 end
 

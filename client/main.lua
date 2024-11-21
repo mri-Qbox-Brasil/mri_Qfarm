@@ -29,7 +29,7 @@ local farmPointTargets = {}
 local defaultBlipColor = 5
 
 local blipSettings = {
-    coordenadas = {
+    coords = {
         x = 0,
         y = 0,
         z = 0
@@ -41,7 +41,9 @@ local blipSettings = {
     route = true,
     text = locale("misc.farm_point")
 }
+
 DefaultAnimCmd = 'bumbin'
+
 DefaultAnim = {
     dict = "amb@prop_human_bum_bin@idle_a",
     anim = "idle_a",
@@ -55,23 +57,19 @@ DefaultAnim = {
     z = 0
 }
 
-local function DrawTxt(x, y, width, height, scale, text, r, g, b, a, _)
-    SetTextFont(4)
-    SetTextProportional(false)
-    SetTextScale(scale, scale)
-    SetTextColour(r, g, b, a)
-    -- SetTextDropshadow(0, 0, 0, 0, 255)
-    SetTextEdge(2, 0, 0, 0, 255)
-    SetTextDropShadow()
-    SetTextOutline()
-    SetTextEntry("STRING")
-    AddTextComponentString(text)
-    DrawText(x - width / 2, y - height / 2 + 0.005)
+DefaultCollectTime = 7000
+
+local function showHelpNotification(text, delay, type, playSound)
+    local type = type or 0
+    local delay = delay or 5000
+    local playSound = playSound or false
+    BeginTextCommandDisplayHelp("STRING")
+    AddTextComponentSubstringKeyboardDisplay(text)
+    EndTextCommandDisplayHelp(type, false, playSound, delay)
 end
 
 local function createBlip(data)
-    local coordenadas = data.coordenadas
-    local b = AddBlipForCoord(coordenadas.x, coordenadas.y, coordenadas.z)
+    local b = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
     SetBlipSprite(b, data.sprite)
     SetBlipColour(b, data.color)
     SetBlipScale(b, data.scale)
@@ -130,6 +128,7 @@ local function stopFarm()
     deleteBlip(blip)
     markerCoords = nil
     currentPoint = 0
+    playerFarm = nil
 end
 
 local function farmThread()
@@ -147,7 +146,7 @@ local function farmThread()
                 stopFarm()
             end
             if Config.ShowOSD then
-                DrawTxt(0.93, 1.44, 1.0, 1.0, 0.6, locale('actions.stop_f7'), 255, 255, 255, 255)
+                showHelpNotification(locale('actions.stop_f7'), 1000, 1)
             end
             Wait(0)
         end
@@ -202,61 +201,116 @@ local function nextTask(shuffle, unlimited)
         y = farmPoints[currentPoint].y,
         z = farmPoints[currentPoint].z
     }
-    blipSettings.coordenadas = markerCoords
+    blipSettings.coords = markerCoords
     blipSettings.text = locale("misc.farm_point")
     blipSettings.sprite = 465
     blip = createBlip(blipSettings)
 end
 
-local function checkAndOpenPoint(point, itemName, item)
-    if not IsPedInAnyVehicle(PlayerPedId(), false) and (Config.UseTarget or IsControlJustReleased(0, 38)) then
-        if ((playerFarm and playerFarm.config["car"] == nil) or
-            IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["car"].model))) then
-            lib.hideTextUI()
-            if not item["unlimited"] then
-                if Config.UseTarget then
-                    exports.ox_target:removeZone(farmPointTargets[point])
-                else
-                    farmPointZones[point].zone:destroy()
-                end
-            end
-            currentSequence = currentPoint
-            currentPoint = -1
-            local duration = math.random(6000, 8000)
-            local animation = nil
-            if (item["animation"]) then
-                animation = item.animation
-            else
-                if Config.UseUseEmoteMenu then
-                    animation = DefaultAnimCmd
-                else
-                    animation = DefaultAnim
-                    animation["duration"] = duration
-                end
-            end
-            pickAnim(animation)
-            local item = Items[itemName]
-            actionProcess(itemName, locale("progress.pick_farm", item.label), duration, function() -- Done
-                TriggerServerEvent("mri_Qfarm:server:getRewardItem", itemName, playerFarm.farmId)
-                finishPicking()
-            end, function() -- Cancel
-                lib.notify({
-                    description = locale("task.cancel_task"),
-                    type = "error"
-                })
-                finishPicking()
-            end)
+local function openPoint(point, itemName, item)
+    lib.hideTextUI()
+    if not item["unlimited"] then
+        if Config.UseTarget then
+            exports.ox_target:removeZone(farmPointTargets[point])
         else
-            lib.notify({
-                description = locale("error.incorrect_vehicle"),
-                type = "error"
-            })
+            farmPointZones[point].zone:destroy()
         end
     end
+    currentSequence = currentPoint
+    currentPoint = -1
+    local duration = item.collectTime or DefaultCollectTime
+    local animation = nil
+    if (item["animation"]) then
+        animation = item.animation
+    else
+        if Config.UseUseEmoteMenu then
+            animation = DefaultAnimCmd
+        else
+            animation = DefaultAnim
+            animation["duration"] = duration
+        end
+    end
+    pickAnim(animation)
+    local itemRegister = Items[itemName]
+    if item["collectItem"]["name"] and item["collectItem"]["durability"] then
+        lib.callback.await('mri_Qfarm:server:UseItem', false, item)
+    end
+    actionProcess(itemName, locale("progress.pick_farm", itemRegister.label), duration, function() -- Done
+        lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
+        finishPicking()
+    end, function() -- Cancel
+        lib.notify({
+            description = locale("task.cancel_task"),
+            type = "error"
+        })
+        finishPicking()
+    end)
 end
 
-local function checkInteraction(point)
-    return currentPoint == point
+local function checkInteraction(point, item)
+    local collectItem = item["collectItem"] or {}
+    local collectItemName = collectItem["name"]
+    if not playerFarm then
+        -- Verifica se o player está farmando agora
+        return false
+    end
+
+    if not currentPoint == point then
+        -- Verifica se o player está na zona correta
+        return false
+    end
+
+    if IsPedInAnyVehicle(cache.ped, false) then
+        -- Verifica se o player esta em um veiculo
+        lib.notify({
+            id = "farm:error.not_in_vehicle",
+            description = locale("error.not_in_vehicle"),
+            type = "error"
+        })
+        return false
+    end
+
+    if playerFarm.config["vehicle"] and not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"])) then
+        -- Verifica se o player esta no veículo certo
+        lib.notify({
+            id = "farm:error.incorrect_vehicle",
+            description = locale("error.incorrect_vehicle"),
+            type = "error"
+        })
+        return false
+    end
+
+    if collectItemName then
+        local toolItem = exports.ox_inventory:Search('slots', collectItemName)
+        if not toolItem then
+            -- Verifica se o player tem o item certo
+            lib.notify({
+                id = "farm:error.no_item",
+                description = locale("error.no_item", collectItemName),
+                type = "error"
+            })
+            return false
+        end
+
+        for k, v in pairs(toolItem) do
+            if v.metadata.durability >= item.collectItem.durability then
+                toolItem = v
+                break
+            end
+        end
+
+        if (toolItem.metadata.durability or 0) < (item["collectItem"]["durability"] or 0) then
+            -- Verifica se o item tem durabilidade
+            lib.notify({
+                id = "farm:error.low_durability",
+                description = locale("error.low_durability", Items[collectItemName].label),
+                type = "error"
+            })
+            return false
+        end
+    end
+
+    return true
 end
 
 local function loadFarmZones(itemName, item)
@@ -270,12 +324,12 @@ local function loadFarmZones(itemName, item)
                 options = {
                     name = label,
                     icon = "fa-solid fa-screwdriver-wrench",
-                    label = "Coletar",
+                    label = locale("target.label", item.label),
                     canInteract = function()
-                        return checkInteraction(point)
+                        return checkInteraction(point, item)
                     end,
                     onSelect = function()
-                        checkAndOpenPoint(point, itemName, item)
+                        openPoint(point, itemName, item)
                     end
                 }
             })
@@ -297,11 +351,13 @@ local function loadFarmZones(itemName, item)
                 if farmPointZones[point].isInside then
                     if point == currentPoint then
                         CreateThread(function()
-                            while farmPointZones[point].isInside and point == currentPoint do
+                            while farmPointZones[point].isInside do
                                 lib.showTextUI(locale("task.start_task"), {
                                     position = 'right-center'
                                 })
-                                checkAndOpenPoint(point, itemName, item)
+                                if IsControlJustReleased(0, 38) and checkInteraction(point) then
+                                    openPoint(point, itemName, item)
+                                end
                                 Wait(1)
                             end
                         end)
