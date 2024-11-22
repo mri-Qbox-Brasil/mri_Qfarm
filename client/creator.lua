@@ -30,6 +30,13 @@ local newItem = {
     collectVehicle = nil
 }
 
+local function ifThen(condition, ifTrue, ifFalse)
+    if condition then
+        return ifTrue
+    end
+    return ifFalse
+end
+
 local function delete(caption, tableObj, key)
     if Utils.ConfirmationDialog(caption) == "confirm" then
         if type(key) == "number" then
@@ -268,7 +275,8 @@ local function setFarmGrade(args)
                 description = locale("creator.description_grade"),
                 default = farm.group["grade"] or 0,
                 required = true,
-                searchable = true
+                searchable = true,
+                min = 0
             }
         }
     )
@@ -328,14 +336,22 @@ local function selMinMaxInput(args)
                 label = locale("items.min"),
                 description = locale("items.description_min"),
                 default = args.min or 0,
-                required = true
+                required = true,
+                min = 0,
             },
             {
                 type = "number",
                 label = locale("items.max"),
                 description = locale("items.description_max"),
                 default = args.max or 1,
-                required = true
+                required = true,
+                min = 0,
+            },
+            {
+                type = "textarea",
+                min = 4,
+                default = locale("items.example_minmax"),
+                disabled = true
             }
         }
     )
@@ -386,7 +402,8 @@ local function setCollectTime(args)
                 label = locale("items.collect_time"),
                 description = locale("items.description_collect_time"),
                 default = item.collectTime or DefaultCollectTime,
-                required = true
+                required = true,
+                min = 0
             }
         }
     )
@@ -451,7 +468,9 @@ function setItemDurability(args)
                 label = locale("items.durability"),
                 description = locale("items.description_item_durability"),
                 default = item["collectItem"]["durability"] or 0,
-                required = true
+                required = true,
+                min = 0,
+                max = 100
             }
         }
     )
@@ -807,7 +826,7 @@ local function extraItemActionMenu(args)
     local ctx = {
         id = "extra_item_action",
         menu = "list_extra_items",
-        title = locale("menus.extra_items", Items[args.itemKey].label),
+        title = locale("menus.extra_items", Items[args.extraItemKey].label),
         description = locale("menu.description_extra_items", extraItem.min, extraItem.max),
         options = {
             {
@@ -895,6 +914,100 @@ function listExtraItems(args)
     lib.showContext(ctx.id)
 end
 
+local function configMenu(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local ctx = {
+        id = "config_item",
+        menu = "action_item",
+        title = Items[args.itemKey].label,
+        description = locale(
+            "actions.item.description_menu",
+            item.randomRoute and locale("misc.yes") or locale("misc.no"),
+            item.min or 0,
+            item.max or 1
+        ),
+        options = {
+            {
+                title = locale("actions.item.collect_time"),
+                description = locale("actions.item.description_collect_time", item.collectTime or DefaultCollectTime),
+                icon = "clock",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setCollectTime,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
+                title = locale("actions.item.collect_item"),
+                description = locale("actions.item.description_collect_item", item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or locale("misc.none")),
+                icon = "screwdriver-wrench",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setCollectItem,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
+                title = locale("actions.item.item_durability"),
+                description = locale("actions.item.description_item_durability", item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or locale("misc.none"), item["collectItem"] and item["collectItem"]["durability"] or 0),
+                icon = "wrench",
+                iconAnimation = Config.IconAnimation,
+                disabled = item["collectItem"] == nil or item["collectItem"]["name"] == nil,
+                onSelect = setItemDurability,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
+                title = locale("actions.item.random"),
+                description = locale("actions.item.description_random", item.randomRoute and locale("misc.yes") or locale("misc.no")),
+                icon = "shuffle",
+                iconColor = ifThen(item.randomRoute, ColorScheme.success, ColorScheme.danger),
+                iconAnimation = Config.IconAnimation,
+                onSelect = setRandom,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
+                title = locale("actions.item.unlimited"),
+                description = locale("actions.item.description_unlimited", item.unlimited and locale("misc.yes") or locale("misc.no")),
+                icon = "infinity",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ifThen(item.unlimited, ColorScheme.success, ColorScheme.danger),
+                onSelect = setUnlimited,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
+                title = locale("actions.item.extraItems"),
+                description = locale("actions.item.description_extraItems"),
+                icon = "list",
+                iconAnimation = Config.IconAnimation,
+                arrow = true,
+                onSelect = listExtraItems,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey
+                }
+            },
+        }
+    }
+    lib.registerContext(ctx)
+    lib.showContext(ctx.id)
+end
+
 local function itemActionMenu(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local ctx = {
@@ -933,60 +1046,12 @@ local function itemActionMenu(args)
                 }
             },
             {
-                title = locale("actions.item.collect_time"),
-                description = locale("actions.item.description_collect_time"),
-                icon = "clock",
+                title = locale("actions.item.config"),
+                description = locale("actions.item.description_config"),
+                icon = "gear",
                 iconAnimation = Config.IconAnimation,
-                onSelect = setCollectTime,
-                args = {
-                    farmKey = args.farmKey,
-                    itemKey = args.itemKey,
-                    callback = itemActionMenu
-                }
-            },
-            {
-                title = locale("actions.item.collect_item"),
-                description = locale("actions.item.description_collect_item"),
-                icon = "screwdriver-wrench",
-                iconAnimation = Config.IconAnimation,
-                onSelect = setCollectItem,
-                args = {
-                    farmKey = args.farmKey,
-                    itemKey = args.itemKey,
-                    callback = itemActionMenu
-                }
-            },
-            {
-                title = locale("actions.item.item_durability"),
-                description = locale("actions.item.description_item_durability"),
-                icon = "wrench",
-                iconAnimation = Config.IconAnimation,
-                disabled = item["collectItem"] == nil or item["collectItem"]["name"] == nil,
-                onSelect = setItemDurability,
-                args = {
-                    farmKey = args.farmKey,
-                    itemKey = args.itemKey,
-                    callback = itemActionMenu
-                }
-            },
-            {
-                title = locale("actions.item.random"),
-                description = locale("actions.item.description_random"),
-                icon = "shuffle",
-                iconAnimation = Config.IconAnimation,
-                onSelect = setRandom,
-                args = {
-                    farmKey = args.farmKey,
-                    itemKey = args.itemKey,
-                    callback = itemActionMenu
-                }
-            },
-            {
-                title = locale("actions.item.unlimited"),
-                description = locale("actions.item.description_unlimited"),
-                icon = "infinity",
-                iconAnimation = Config.IconAnimation,
-                onSelect = setUnlimited,
+                arrow = true,
+                onSelect = configMenu,
                 args = {
                     farmKey = args.farmKey,
                     itemKey = args.itemKey,
@@ -1006,24 +1071,12 @@ local function itemActionMenu(args)
                 }
             },
             {
-                title = locale("actions.item.points"),
+                title = locale("actions.item.points", #item.points),
                 description = locale("actions.item.description_points"),
                 icon = "location-crosshairs",
                 iconAnimation = Config.IconAnimation,
                 arrow = true,
                 onSelect = listPoints,
-                args = {
-                    farmKey = args.farmKey,
-                    itemKey = args.itemKey
-                }
-            },
-            {
-                title = locale("actions.item.extraItems"),
-                description = locale("actions.item.description_extraItems"),
-                icon = "list",
-                iconAnimation = Config.IconAnimation,
-                arrow = true,
-                onSelect = listExtraItems,
                 args = {
                     farmKey = args.farmKey,
                     itemKey = args.itemKey
