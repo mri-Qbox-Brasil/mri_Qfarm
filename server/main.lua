@@ -64,6 +64,40 @@ lib.callback.register(
 )
 
 lib.callback.register(
+    "mri_Qfarm:server:GainStress",
+    function(source,  item)
+        local src = source
+        local player = exports.qbx_core:GetPlayer(src)
+        if not player.PlayerData.metadata.stress then
+            player.PlayerData.metadata.stress = 0
+        end
+        if item.gainStress.max == 0 then
+            return
+        end
+        local amount = math.random(item.gainStress.min, item.gainStress.max)
+        local newStress = player.PlayerData.metadata.stress + amount
+        if newStress <= 0 then
+            newStress = 0
+        elseif newStress > 100 then
+            newStress = 100
+        end
+        player.Functions.SetMetaData("stress", newStress)
+        TriggerClientEvent("hud:client:UpdateStress", src, newStress)
+        exports.qbx_core:Notify(
+            src,
+            locale("notify.stress_gain"),
+            "inform",
+            3000,
+            nil,
+            nil,
+            {"#141517", "#ffffff"},
+            "brain",
+            "#C53030"
+        )
+    end
+)
+
+lib.callback.register(
     "mri_Qfarm:server:getRewardItem",
     function(source, itemName, farmId)
         local src = source

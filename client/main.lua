@@ -292,6 +292,9 @@ local function openPoint(point, itemName, item)
     if item["collectItem"]["name"] and item["collectItem"]["durability"] then
         lib.callback.await("mri_Qfarm:server:UseItem", false, item)
     end
+    if (item["gainStress"]["max"]) or 0 > 0 then
+        lib.callback.await("mri_Qfarm:server:GainStress", false, item)
+    end
     actionProcess(
         itemName,
         locale("progress.pick_farm", itemRegister.label),
@@ -322,8 +325,16 @@ local function checkInteraction(point, item)
         return false
     end
 
-    if not currentPoint == point then
+    if not (currentPoint == point) then
         -- Verifica se o player está na zona correta
+        lib.notify(
+            {
+                id = "farm:error.wrong_point",
+                title = locale("error.wrong_point_title"),
+                description = locale("error.wrong_point_message"),
+                type = "error"
+            }
+        )
         return false
     end
 
@@ -479,7 +490,7 @@ local function startFarming(args)
     currentSequence = 0
     lib.notify(
         {
-            description = locale("text.start_shift", Items[itemName].label),
+            description = locale("text.start_shift", farmItem["customName"] or Items[itemName].label),
             type = "info"
         }
     )
@@ -514,11 +525,11 @@ local function showFarmMenu(farm)
         icon = "fa-solid fa-briefcase",
         options = {}
     }
-    for itemName, _ in pairs(farm.config.items) do
+    for itemName, v in pairs(farm.config.items) do
         local item = Items[itemName]
         if not (item == nil) then
             ctx.options[#ctx.options + 1] = {
-                title = item.label,
+                title = v["customName"] and v["customName"] ~= "" and v["customName"] or item.label,
                 description = item.description,
                 icon = string.format("%s/%s.png", ImageURL, item.name),
                 image = string.format("%s/%s.png", ImageURL, item.name),

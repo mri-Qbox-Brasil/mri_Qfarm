@@ -109,7 +109,7 @@ end
 local function deleteExtraItem(args)
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.extra_item"), args.name),
+        locale("actions.confirmation_description", locale("actions.extra_item"), Items[args.extraItemKey].label),
         Farms[args.farmKey].config.items[args.itemKey].extraItems,
         args.extraItemKey
     )
@@ -230,7 +230,7 @@ local function setFarmGroup(args)
         {
             {
                 type = "multi-select",
-                label = locale("creator.group"),
+                label = locale("creator.groups"),
                 description = locale("creator.description_group"),
                 options = Utils.GetBaseGroups(),
                 default = farm.group["name"],
@@ -287,15 +287,15 @@ local function setFarmGrade(args)
     args.callback(key)
 end
 
-local function selItemInput(args)
+local function selItemInput(args, extra)
     return lib.inputDialog(
-        locale("actions.item.change"),
+        locale("actions.item.select"),
         {
             {
                 type = "select",
                 label = locale("items.name"),
                 description = locale("items.description_name"),
-                default = args["itemKey"],
+                default = (extra and (args["extraItemKey"] or "")) or args["itemKey"],
                 options = Utils.GetBaseItems(),
                 required = true,
                 searchable = true,
@@ -329,28 +329,30 @@ end
 local function selMinMaxInput(args)
     local input =
         lib.inputDialog(
-        locale("actions.item.minmax"),
+        args.item.label,
         {
             {
                 type = "number",
                 label = locale("items.min"),
                 description = locale("items.description_min"),
-                default = args.min or 0,
+                default = args.item.min or 0,
                 required = true,
-                min = 0,
+                min = args.min,
+                max = args.max
             },
             {
                 type = "number",
                 label = locale("items.max"),
                 description = locale("items.description_max"),
-                default = args.max or 1,
+                default = args.item.max or 1,
                 required = true,
-                min = 0,
+                min = args.min,
+                max = args.max
             },
             {
                 type = "textarea",
-                min = 4,
-                default = locale("items.example_minmax"),
+                min = 5,
+                default = args.example,
                 disabled = true
             }
         }
@@ -363,21 +365,55 @@ local function selMinMaxInput(args)
                     description = locale("error.invalid_range")
                 }
             )
-            input =
-                selMinMaxInput(
-                {
-                    min = args.min,
-                    max = args.max
-                }
-            )
+            input = selMinMaxInput(args)
         end
         return input
     end
 end
 
+local function setName(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local input =
+        lib.inputDialog(
+        locale("route.setname"),
+        {
+            {
+                type = "input",
+                label = locale("route.name"),
+                description = locale("route.description"),
+                default = item["customName"] or Items[args.itemKey].label,
+                min = 5,
+                max = 30
+            }
+        }
+    )
+    if input then
+        item["customName"] = input[1]
+        Farms[args.farmKey].config.items[args.itemKey] = item
+    end
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
+end
+
 local function setMinMax(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
-    local input = selMinMaxInput(item)
+    local input =
+        selMinMaxInput(
+        {
+            min = 0,
+            max = 99999,
+            example = locale("items.example_minmax"),
+            item = {
+                label = Items[args.itemKey].label,
+                item.min,
+                item.max
+            }
+        }
+    )
     if input then
         item.min = tonumber(input[1])
         item.max = tonumber(input[2])
@@ -481,6 +517,36 @@ function setItemDurability(args)
         else
             item["collectItem"]["durability"] = nil
         end
+        Farms[args.farmKey].config.items[args.itemKey] = item
+    end
+    args.callback(
+        {
+            farmKey = args.farmKey,
+            itemKey = args.itemKey
+        }
+    )
+end
+
+function setGainStress(args)
+    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local gainStress = item["gainStress"] or {min = 0, max = 1}
+    local input =
+        selMinMaxInput(
+        {
+            min = 0,
+            max = 99999,
+            example = locale("items.example_stress"),
+            item = {
+                label = locale("creator.stress"),
+                item.min,
+                item.max
+            }
+        }
+    )
+    if input then
+        gainStress["min"] = tonumber(input[1]) or 0
+        gainStress["max"] = tonumber(input[2]) or 0
+        item["gainStress"] = gainStress
         Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
@@ -779,22 +845,25 @@ end
 local function addExtraItem(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
-    local input = selItemInput(args)
+    local input = selItemInput(args, true)
     if input then
-        if not item["extraItems"] then
-            item["extraItems"] = {}
-        end
-        item.extraItems[input[1]] = {
-            min = 0,
-            max = 1
+        item["extraItems"] = {
+            [input[1]] = {
+                min = 0,
+                max = 1
+            }
         }
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
+    else
+        listExtraItems(args)
+        return
     end
     args.callback(
         {
             farmKey = args.farmKey,
-            itemKey = args.itemKey
+            itemKey = args.itemKey,
+            extraItemKey = input[1]
         }
     )
 end
@@ -803,7 +872,19 @@ local function setMinMaxExtraItem(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local extraItem = item["extraItems"][args.extraItemKey]
-    local input = selMinMaxInput({min = extraItem.min, max = extraItem.max})
+    local input =
+        selMinMaxInput(
+        {
+            min = 0,
+            max = 99999,
+            example = locale("items.example_minmax"),
+            item = {
+                label = Items[args.extraItemKey].label,
+                extraItem.min,
+                extraItem.max
+            }
+        }
+    )
     if input then
         item["extraItems"][args.extraItemKey].min = input[1] or 0
         item["extraItems"][args.extraItemKey].max = input[2] or 1
@@ -830,9 +911,8 @@ local function extraItemActionMenu(args)
         description = locale("menu.description_extra_items", extraItem.min, extraItem.max),
         options = {
             {
-                title = locale("actions.item.change"),
-                description = locale("actions.item.description_change"),
-                icon = "file-pen",
+                title = locale("actions.item.select"),
+                icon = "box-open",
                 iconAnimation = Config.IconAnimation,
                 onSelect = addExtraItem,
                 args = {
@@ -843,7 +923,7 @@ local function extraItemActionMenu(args)
             },
             {
                 title = locale("actions.item.minmax"),
-                description = locale("actions.item.description_minmax"),
+                description = locale("actions.item.description_minmax", extraItem.min, extraItem.max),
                 icon = "up-down",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setMinMaxExtraItem,
@@ -920,12 +1000,7 @@ local function configMenu(args)
         id = "config_item",
         menu = "action_item",
         title = Items[args.itemKey].label,
-        description = locale(
-            "actions.item.description_menu",
-            item.randomRoute and locale("misc.yes") or locale("misc.no"),
-            item.min or 0,
-            item.max or 1
-        ),
+        description = Items[args.itemKey].description,
         options = {
             {
                 title = locale("actions.item.collect_time"),
@@ -941,7 +1016,11 @@ local function configMenu(args)
             },
             {
                 title = locale("actions.item.collect_item"),
-                description = locale("actions.item.description_collect_item", item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or locale("misc.none")),
+                description = locale(
+                    "actions.item.description_collect_item",
+                    item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or
+                        locale("misc.none")
+                ),
                 icon = "screwdriver-wrench",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setCollectItem,
@@ -953,7 +1032,12 @@ local function configMenu(args)
             },
             {
                 title = locale("actions.item.item_durability"),
-                description = locale("actions.item.description_item_durability", item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or locale("misc.none"), item["collectItem"] and item["collectItem"]["durability"] or 0),
+                description = locale(
+                    "actions.item.description_item_durability",
+                    item["collectItem"] and item["collectItem"]["name"] and Items[item["collectItem"]["name"]].label or
+                        locale("misc.none"),
+                    item["collectItem"] and item["collectItem"]["durability"] or 0
+                ),
                 icon = "wrench",
                 iconAnimation = Config.IconAnimation,
                 disabled = item["collectItem"] == nil or item["collectItem"]["name"] == nil,
@@ -965,8 +1049,27 @@ local function configMenu(args)
                 }
             },
             {
+                title = locale("actions.item.gain_stress"),
+                description = locale(
+                    "actions.item.description_gain_stress",
+                    item["gainStress"] and (item["gainStress"]["min"]) or 0,
+                    item["gainStress"] and (item["gainStress"]["max"]) or 0
+                ),
+                icon = "face-tired",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setGainStress,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = configMenu
+                }
+            },
+            {
                 title = locale("actions.item.random"),
-                description = locale("actions.item.description_random", item.randomRoute and locale("misc.yes") or locale("misc.no")),
+                description = locale(
+                    "actions.item.description_random",
+                    item.randomRoute and locale("misc.yes") or locale("misc.no")
+                ),
                 icon = "shuffle",
                 iconColor = ifThen(item.randomRoute, ColorScheme.success, ColorScheme.danger),
                 iconAnimation = Config.IconAnimation,
@@ -979,7 +1082,10 @@ local function configMenu(args)
             },
             {
                 title = locale("actions.item.unlimited"),
-                description = locale("actions.item.description_unlimited", item.unlimited and locale("misc.yes") or locale("misc.no")),
+                description = locale(
+                    "actions.item.description_unlimited",
+                    item.unlimited and locale("misc.yes") or locale("misc.no")
+                ),
                 icon = "infinity",
                 iconAnimation = Config.IconAnimation,
                 iconColor = ifThen(item.unlimited, ColorScheme.success, ColorScheme.danger),
@@ -1001,7 +1107,7 @@ local function configMenu(args)
                     farmKey = args.farmKey,
                     itemKey = args.itemKey
                 }
-            },
+            }
         }
     }
     lib.registerContext(ctx)
@@ -1012,19 +1118,26 @@ local function itemActionMenu(args)
     local item = Farms[args.farmKey].config.items[args.itemKey]
     local ctx = {
         id = "action_item",
-        title = Items[args.itemKey].label,
-        description = locale(
-            "actions.item.description_menu",
-            item.randomRoute and locale("misc.yes") or locale("misc.no"),
-            item.min or 0,
-            item.max or 1
-        ),
+        title = item["customName"] and item["customName"] ~= "" and item["customName"] or Items[args.itemKey].label,
+        description = Items[args.itemKey].description,
         menu = "items_farm",
         options = {
             {
-                title = locale("actions.item.change"),
-                description = locale("actions.item.description_change"),
-                icon = "file-pen",
+                title = locale("actions.item.setname"),
+                description = locale("actions.item.description_setname"),
+                icon = "tag",
+                iconAnimation = Config.IconAnimation,
+                onSelect = setName,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.select"),
+                description = locale("actions.item.description_select"),
+                icon = "box-open",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setItem,
                 args = {
@@ -1035,7 +1148,7 @@ local function itemActionMenu(args)
             },
             {
                 title = locale("actions.item.minmax"),
-                description = locale("actions.item.description_minmax"),
+                description = locale("actions.item.description_minmax", item.min or 0, item.max or 0),
                 icon = "up-down",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setMinMax,
@@ -1071,8 +1184,8 @@ local function itemActionMenu(args)
                 }
             },
             {
-                title = locale("actions.item.points", #item.points),
-                description = locale("actions.item.description_points"),
+                title = locale("actions.item.points"),
+                description = locale("actions.item.description_points", #item.points),
                 icon = "location-crosshairs",
                 iconAnimation = Config.IconAnimation,
                 arrow = true,
@@ -1128,7 +1241,7 @@ function ListItems(args)
     for k, v in pairs(farm.config.items) do
         if Items[k] then
             ctx.options[#ctx.options + 1] = {
-                title = Items[k].label,
+                title = v["customName"] and v["customName"] ~= "" and v["customName"] or Items[k].label,
                 icon = string.format("%s/%s.png", ImageURL, Items[k].name),
                 image = string.format("%s/%s.png", ImageURL, Items[k].name),
                 metadata = Utils.GetItemMetadata(Items[k]),
@@ -1167,7 +1280,7 @@ end
 
 local function actionMenu(key)
     local farm = Farms[key]
-    local groupName
+    local groupName = locale("creator.no_group")
     local grade = "0"
     local groups = Utils.GetBaseGroups(true)
     local disableGradeSet = false
@@ -1185,20 +1298,13 @@ local function actionMenu(key)
     end
     local ctx = {
         id = "action_farm",
-        description = string.format(
-            "%s: %s, %s: %s",
-            locale("creator.group"),
-            groupName,
-            locale("creator.grade"),
-            grade
-        ),
         title = farm.name:upper(),
         menu = "list_farms",
         options = {
             {
                 title = locale("actions.farm.rename"),
                 description = locale("actions.farm.description_rename"),
-                icon = "file-pen",
+                icon = "tag",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setFarmName,
                 args = {
@@ -1207,8 +1313,8 @@ local function actionMenu(key)
                 }
             },
             {
-                title = locale("creator.group"),
-                description = locale("creator.description_group"),
+                title = locale("creator.groups"),
+                description = locale("creator.description_group", groupName),
                 icon = "users",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setFarmGroup,
@@ -1219,7 +1325,7 @@ local function actionMenu(key)
             },
             {
                 title = locale("creator.grade"),
-                description = locale("creator.description_grade"),
+                description = locale("creator.description_grade", grade),
                 icon = "list-ol",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setFarmGrade,
@@ -1231,7 +1337,7 @@ local function actionMenu(key)
             },
             {
                 title = locationText,
-                icon = "location-dot",
+                icon = "map-location-dot",
                 iconAnimation = Config.IconAnimation,
                 onSelect = changeFarmLocation,
                 description = locale("actions.farm.description_location"),
@@ -1243,7 +1349,7 @@ local function actionMenu(key)
             {
                 title = locale("actions.farm.items"),
                 description = locale("actions.farm.description_items"),
-                icon = "rectangle-list",
+                icon = "route",
                 iconAnimation = Config.IconAnimation,
                 arrow = true,
                 onSelect = ListItems,
@@ -1265,7 +1371,7 @@ local function actionMenu(key)
             {
                 title = locale("actions.export"),
                 description = locale("actions.description_export", locale("actions.farm")),
-                icon = "copy",
+                icon = "share-from-square",
                 iconAnimation = Config.IconAnimation,
                 onSelect = exportFarm,
                 args = {
@@ -1307,7 +1413,7 @@ function ListFarm()
     local ctx = {
         id = "list_farms",
         menu = "menu_farm",
-        title = "Listar Farms",
+        title = locale("menus.farms"),
         description = locale("actions.farm.description_title", #Farms),
         options = {}
     }
@@ -1316,7 +1422,7 @@ function ListFarm()
         if v.group["name"] then
             groupName = Utils.GetGroupsLabel(v.group["name"])
         end
-        local description = locale("menus.description_farm", groupName)
+        local description = locale("menus.description_farm", locale("creator.groups"), groupName)
         ctx.options[#ctx.options + 1] = {
             title = v.name:upper(),
             icon = "warehouse",
@@ -1370,7 +1476,7 @@ if GetResourceState("mri_Qbox") == "started" then
         {
             title = locale("creator.title"),
             description = locale("creator.description_title"),
-            icon = "tools",
+            icon = "toolbox",
             iconAnimation = "fade",
             arrow = true,
             onSelectFunction = manageFarms
