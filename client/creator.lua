@@ -231,7 +231,7 @@ local function setFarmGroup(args)
             {
                 type = "multi-select",
                 label = locale("creator.groups"),
-                description = locale("creator.description_group"),
+                description = string.sub(locale("creator.description_group"), 1, -4),
                 options = Utils.GetBaseGroups(),
                 default = farm.group["name"],
                 required = false,
