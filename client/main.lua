@@ -533,7 +533,7 @@ local function showFarmMenu(farm)
                 description = item.description,
                 icon = string.format("%s/%s.png", ImageURL, item.name),
                 image = string.format("%s/%s.png", ImageURL, item.name),
-                metadata = Utils.GetItemMetadata(item),
+                metadata = Utils.GetItemMetadata(item, true),
                 disabled = startFarm,
                 onSelect = startFarming,
                 args = {

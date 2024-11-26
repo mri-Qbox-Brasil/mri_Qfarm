@@ -150,21 +150,27 @@ function Utils.GetBaseItems()
     return items
 end
 
-function Utils.GetItemMetadata(item)
-    return {
-        {
+function Utils.GetItemMetadata(item, hideSpawn)
+    local result = {}
+    if not hideSpawn then
+        result[#result + 1] = {
             label = locale("items.spawn"),
             value = item.name
-        },
-        {
+        }
+    end
+    if item.weight then
+        result[#result + 1] = {
             label = locale("items.weight"),
             value = item.weight
-        },
-        {
-            label = locale("items.type"),
-            value = item.type or locale("items.notype")
         }
-    }
+    end
+    if item.type then
+        result[#result + 1] = {
+            label = locale("items.type"),
+            value = item.type
+        }
+    end
+    return result
 end
 
 function Utils.GetMetadataFromFarm(key)
