@@ -959,7 +959,7 @@ function listExtraItems(args)
     local item = farm.config.items[args.itemKey]
     local ctx = {
         id = "list_extra_items",
-        menu = "action_item",
+        menu = "config_item",
         title = locale("menus.extra_items", Items[args.itemKey].label),
         options = {}
     }
