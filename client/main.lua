@@ -292,7 +292,7 @@ local function openPoint(point, itemName, item)
     if item["collectItem"]["name"] and item["collectItem"]["durability"] then
         lib.callback.await("mri_Qfarm:server:UseItem", false, item)
     end
-    if (item["gainStress"]["max"]) or 0 > 0 then
+    if (item["gainStress"] and item["gainStress"]["max"]) or 0 > 0 then
         lib.callback.await("mri_Qfarm:server:GainStress", false, item)
     end
     actionProcess(

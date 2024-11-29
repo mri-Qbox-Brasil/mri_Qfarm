@@ -847,11 +847,9 @@ local function addExtraItem(args)
     local item = farm.config.items[args.itemKey]
     local input = selItemInput(args, true)
     if input then
-        item["extraItems"] = {
-            [input[1]] = {
-                min = 0,
-                max = 1
-            }
+        item["extraItems"][input[1]] = {
+            min = 0,
+            max = 1
         }
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
