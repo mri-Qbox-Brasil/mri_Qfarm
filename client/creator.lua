@@ -845,12 +845,14 @@ end
 local function addExtraItem(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
+    local extraItems = item["extraItems"] or {}
     local input = selItemInput(args, true)
     if input then
-        item["extraItems"][input[1]] = {
+        extraItems[input[1]] = {
             min = 0,
             max = 1
         }
+        item["extraItems"] = extraItems
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
     else
@@ -869,7 +871,8 @@ end
 local function setMinMaxExtraItem(args)
     local farm = Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
-    local extraItem = item["extraItems"][args.extraItemKey]
+    local extraItems = item["extraItems"] or {}
+    local extraItem = extraItems[args.extraItemKey]
     local input =
         selMinMaxInput(
         {
@@ -884,8 +887,9 @@ local function setMinMaxExtraItem(args)
         }
     )
     if input then
-        item["extraItems"][args.extraItemKey].min = input[1] or 0
-        item["extraItems"][args.extraItemKey].max = input[2] or 1
+        extraItems[args.extraItemKey].min = input[1] or 0
+        extraItems[args.extraItemKey].max = input[2] or 1
+        item["extraItems"] = extraItems
         farm.config.items[args.itemKey] = item
         Farms[args.farmKey] = farm
     end
