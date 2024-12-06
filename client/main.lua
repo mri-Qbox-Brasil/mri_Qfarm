@@ -210,7 +210,7 @@ end
 
 local function finishPicking()
     tasking = false
-    if Config.UseUseEmoteMenu then
+    if Config.UseEmoteMenu then
         ExecuteCommand("e c")
     else
         ClearPedTasks(PlayerPedId())
@@ -280,7 +280,7 @@ local function openPoint(point, itemName, item)
     if (item["animation"]) then
         animation = item.animation
     else
-        if Config.UseUseEmoteMenu then
+        if Config.UseEmoteMenu then
             animation = DefaultAnimCmd
         else
             animation = DefaultAnim
@@ -289,7 +289,8 @@ local function openPoint(point, itemName, item)
     end
     pickAnim(animation)
     local itemRegister = Items[itemName]
-    if item["collectItem"]["name"] and item["collectItem"]["durability"] then
+    local collectItem = item["collectItem"] or {}
+    if collectItem["name"] and collectItem["durability"] then
         lib.callback.await("mri_Qfarm:server:UseItem", false, item)
     end
     if (item["gainStress"] and item["gainStress"]["max"]) or 0 > 0 then

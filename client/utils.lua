@@ -195,12 +195,11 @@ function Utils.GetMetadataFromFarm(key)
     return data
 end
 
-function Utils.GetDefaultAnim()
-    if Config.UseUseEmoteMenu then
-        return DefaultAnimCmd
-    else
+function Utils.GetDefaultAnim(useEmoteMenu)
+    if not useEmoteMenu then
         return DefaultAnim
     end
+    return DefaultAnimCmd
 end
 
 return Utils
