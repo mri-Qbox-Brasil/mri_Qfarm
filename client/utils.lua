@@ -202,4 +202,15 @@ function Utils.GetDefaultAnim(useEmoteMenu)
     return DefaultAnimCmd
 end
 
+function Utils.SendNotification(data)
+    lib.notify(
+        {
+            id = data["id"] or nil,
+            title = data["title"] or nil,
+            description = data["description"] or nil,
+            type = data["type"] or "info"
+        }
+    )
+end
+
 return Utils

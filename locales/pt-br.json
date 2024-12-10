@@ -157,6 +157,7 @@
     "error.invalid_item": "Item '%s' não existe.",
     "error.invalid_item_description": "Clique para remover.",
     "error.no_item": "Você não possui o item necessário.",
+    "error.invalid_item_type": "Tipo de item '%s' inválido.",
     "error.low_durability": "O item não pode ser coletado porque a durabilidade de %s está muito baixa.",
     "error.wrong_point_title": "Ponto de coleta inválido!",
     "error.wrong_point_message": "Estou no local correto?",

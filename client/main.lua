@@ -114,7 +114,7 @@ local function stopFarm()
     startFarm = false
     tasking = false
 
-    lib.notify(
+    Utils.SendNotification(
         {
             type = "error",
             description = locale("text.cancel_shift")
@@ -307,7 +307,7 @@ local function openPoint(point, itemName, item)
         end,
         function()
             -- Cancel
-            lib.notify(
+            Utils.SendNotification(
                 {
                     description = locale("task.cancel_task"),
                     type = "error"
@@ -321,6 +321,7 @@ end
 local function checkInteraction(point, item)
     local collectItem = item["collectItem"] or {}
     local collectItemName = collectItem["name"]
+    local collectItemDurability = collectItem["durability"]
     if not playerFarm then
         -- Verifica se o player está farmando agora
         return false
@@ -328,7 +329,7 @@ local function checkInteraction(point, item)
 
     if not (currentPoint == point) then
         -- Verifica se o player está na zona correta
-        lib.notify(
+        Utils.SendNotification(
             {
                 id = "farm:error.wrong_point",
                 title = locale("error.wrong_point_title"),
@@ -341,7 +342,7 @@ local function checkInteraction(point, item)
 
     if IsPedInAnyVehicle(cache.ped, false) then
         -- Verifica se o player esta em um veiculo
-        lib.notify(
+        Utils.SendNotification(
             {
                 id = "farm:error.not_in_vehicle",
                 description = locale("error.not_in_vehicle"),
@@ -356,7 +357,7 @@ local function checkInteraction(point, item)
             not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"]))
      then
         -- Verifica se o player esta no veículo certo
-        lib.notify(
+        Utils.SendNotification(
             {
                 id = "farm:error.incorrect_vehicle",
                 description = locale("error.incorrect_vehicle"),
@@ -367,10 +368,10 @@ local function checkInteraction(point, item)
     end
 
     if collectItemName then
-        local toolItem = exports.ox_inventory:Search("slots", collectItemName)
-        if not toolItem then
+        local toolItems = exports.ox_inventory:Search("slots", collectItemName)
+        if not toolItems then
             -- Verifica se o player tem o item certo
-            lib.notify(
+            Utils.SendNotification(
                 {
                     id = "farm:error.no_item",
                     description = locale("error.no_item", collectItemName),
@@ -380,23 +381,38 @@ local function checkInteraction(point, item)
             return false
         end
 
-        for k, v in pairs(toolItem) do
-            if  v.metadata and v.metadata.durability and v.metadata.durability >= (item.collectItem.durability or 0) then
-                toolItem = v
-                break
+        if collectItemDurability and collectItemDurability > 0 then
+            local toolItem
+            for k, v in pairs(toolItems) do
+                if v["metadata"] and v.metadata["durability"] and v.metadata.durability then
+                    toolItem = v
+                    break
+                end
             end
-        end
 
-        if (toolItem.metadata.durability or 0) < (item["collectItem"]["durability"] or 0) then
-            -- Verifica se o item tem durabilidade
-            lib.notify(
-                {
-                    id = "farm:error.low_durability",
-                    description = locale("error.low_durability", Items[collectItemName].label),
-                    type = "error"
-                }
-            )
-            return false
+            if toolItem then
+                if toolItem.metadata.durability < collectItemDurability then
+                    -- Verifica se o item tem durabilidade
+                    Utils.SendNotification(
+                        {
+                            id = "farm:error.low_durability",
+                            description = locale("error.low_durability", Items[collectItemName].label),
+                            type = "error"
+                        }
+                    )
+                    return false
+                end
+            else
+                -- Verifica se o item configurado está correto
+                Utils.SendNotification(
+                    {
+                        id = "farm:error.invalid_item_type",
+                        description = locale("error.invalid_item_type", collectItemName),
+                        type = "error"
+                    }
+                )
+                return false
+            end
         end
     end
 
@@ -489,7 +505,7 @@ local function startFarming(args)
     end
 
     currentSequence = 0
-    lib.notify(
+    Utils.SendNotification(
         {
             description = locale("text.start_shift", farmItem["customName"] or Items[itemName].label),
             type = "info"
@@ -504,7 +520,7 @@ local function startFarming(args)
             if amount >= 0 and pickedFarms >= amount then
                 startFarm = false
                 markerCoords = nil
-                lib.notify(
+                Utils.SendNotification(
                     {
                         description = locale("text.end_shift"),
                         type = "info"

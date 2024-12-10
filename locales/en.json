@@ -157,6 +157,7 @@
     "error.invalid_item": "Item '%s' does not exist.",
     "error.invalid_item_description": "Click to remove.",
     "error.no_item": "You do not have the required item.",
+    "error.invalid_item_type": "Item type '%s' is invalid.",
     "error.low_durability": "The item cannot be collected because %s's durability is too low.",
     "error.wrong_point_title": "Invalid collection point!",
     "error.wrong_point_message": "Am I in the correct location?",
