@@ -381,7 +381,7 @@ local function checkInteraction(point, item)
         end
 
         for k, v in pairs(toolItem) do
-            if v.metadata.durability >= item.collectItem.durability then
+            if  v.metadata and v.metadata.durability and v.metadata.durability >= (item.collectItem.durability or 0) then
                 toolItem = v
                 break
             end
