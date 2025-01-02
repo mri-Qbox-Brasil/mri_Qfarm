@@ -13,19 +13,16 @@ local PlayerGang = nil
 local tasking = false
 local currentPoint = 0
 local currentSequence = 0
-local markerCoords = nil
 local blip = 0
 
 local startFarm = false
 
+local farmingItemName = nil
 local farmingItem = nil
 local playerFarm = nil
 
-local farmZones = {}
-local farmTargets = {}
-local farmPoints = {}
-local farmPointZones = {}
-local farmPointTargets = {}
+local farmElements = {}
+local farmPointElements = {}
 local defaultBlipColor = 5
 
 local blipSettings = {
@@ -87,19 +84,16 @@ local function deleteBlip(b)
     end
 end
 
-local function emptyTargetZones(tableObj, type)
+local function emptyTargetElements(tableObj)
     if #tableObj > 0 then
         for k, _ in pairs(tableObj) do
-            if type == "zone" then
+            if not Config.UseTarget then
                 tableObj[k].zone:destroy()
-                if Config.Debug then
-                    print(string.format("Removing target: %s: %s", k, tableObj[k]))
-                end
             else
                 exports.ox_target:removeZone(tableObj[k])
-                if Config.Debug then
-                    print(string.format("Removing target: %s: %s", k, tableObj[k]))
-                end
+            end
+            if Config.Debug then
+                print(string.format("Removing element: %s: %s", k, tableObj[k]))
             end
         end
         table.clear(tableObj)
@@ -121,40 +115,36 @@ local function stopFarm()
         }
     )
 
-    if Config.UseTarget then
-        emptyTargetZones(farmPointTargets, "target")
-    else
-        emptyTargetZones(farmZones, "zone")
-    end
-
+    emptyTargetElements(farmPointElements)
     deleteBlip(blip)
-    markerCoords = nil
     currentPoint = 0
     playerFarm = nil
+    farmingItemName = nil
+    farmingItem = nil
 end
 
 local function farmThread()
     CreateThread(
         function()
             while (startFarm) do
-                if Config.ShowMarker and markerCoords then
+                if Config.ShowMarker then
                     local playerLoc = GetEntityCoords(cache.ped)
-                    if
+                    if currentPoint > 0 and
                         GetDistanceBetweenCoords(
                             playerLoc.x,
                             playerLoc.y,
                             playerLoc.z,
-                            markerCoords.x,
-                            markerCoords.y,
-                            markerCoords.z,
+                            farmingItem.points[currentPoint].x,
+                            farmingItem.points[currentPoint].y,
+                            farmingItem.points[currentPoint].z,
                             true
                         ) <= 30
                      then
                         DrawMarker(
                             2,
-                            markerCoords.x,
-                            markerCoords.y,
-                            markerCoords.z + 0.3,
+                            farmingItem.points[currentPoint].x,
+                            farmingItem.points[currentPoint].y,
+                            farmingItem.points[currentPoint].z + 0.3,
                             0.0,
                             0.0,
                             0.0,
@@ -239,26 +229,21 @@ local function actionProcess(name, description, duration, done, cancel)
     )
 end
 
-local function nextTask(shuffle, unlimited)
+local function nextTask(farmItem)
     if tasking then
         return
     end
-    if (shuffle) then
-        currentPoint = math.random(1, #farmPoints)
+    if (farmItem.randomRoute) then
+        currentPoint = math.random(1, #(farmItem.points))
     else
-        if unlimited and currentSequence >= #farmPoints then
+        if farmItem.unlimited and currentSequence >= #(farmItem.points) then
             currentPoint = 1
         else
             currentPoint = currentSequence + 1
         end
     end
     tasking = true
-    markerCoords = {
-        x = farmPoints[currentPoint].x,
-        y = farmPoints[currentPoint].y,
-        z = farmPoints[currentPoint].z
-    }
-    blipSettings.coords = markerCoords
+    blipSettings.coords = vec3(farmItem.points[currentPoint].x, farmItem.points[currentPoint].y, farmItem.points[currentPoint].z)
     blipSettings.text = locale("misc.farm_point")
     blipSettings.sprite = 465
     blip = createBlip(blipSettings)
@@ -268,9 +253,9 @@ local function openPoint(point, itemName, item)
     lib.hideTextUI()
     if not item["unlimited"] then
         if Config.UseTarget then
-            exports.ox_target:removeZone(farmPointTargets[point])
+            exports.ox_target:removeZone(farmPointElements[point])
         else
-            farmPointZones[point].zone:destroy()
+            farmPointElements[point].zone:destroy()
         end
     end
     currentSequence = currentPoint
@@ -419,12 +404,12 @@ local function checkInteraction(point, item)
     return true
 end
 
-local function loadFarmZones(itemName, item)
+local function loadFarmPoints(itemName, item)
     for point, zone in pairs(item.points) do
         zone = vector3(zone.x, zone.y, zone.z)
         local label = ("farmZone-%s-%s"):format(itemName, point)
         if Config.UseTarget then
-            farmPointTargets[point] =
+            farmPointElements[point] =
                 exports.ox_target:addSphereZone(
                 {
                     coords = zone,
@@ -443,7 +428,7 @@ local function loadFarmZones(itemName, item)
                 }
             )
         else
-            farmPointZones[point] = {
+            farmPointElements[point] = {
                 isInside = false,
                 zone = BoxZone:Create(
                     zone,
@@ -460,14 +445,14 @@ local function loadFarmZones(itemName, item)
         end
 
         if not Config.UseTarget then
-            farmPointZones[point].zone:onPlayerInOut(
+            farmPointElements[point].zone:onPlayerInOut(
                 function(isPointInside)
-                    farmPointZones[point].isInside = isPointInside
-                    if farmPointZones[point].isInside then
+                    farmPointElements[point].isInside = isPointInside
+                    if farmPointElements[point].isInside then
                         if point == currentPoint then
                             CreateThread(
                                 function()
-                                    while farmPointZones[point].isInside do
+                                    while farmPointElements[point].isInside do
                                         lib.showTextUI(
                                             locale("task.start_task"),
                                             {
@@ -495,13 +480,13 @@ local function startFarming(args)
     playerFarm = args.farm
     local itemName = args.itemName
     local farmItem = playerFarm.config.items[itemName]
-    loadFarmZones(itemName, farmItem)
+    loadFarmPoints(itemName, farmItem)
     startFarm = true
-    farmingItem = itemName
-    farmPoints = farmItem.points
+    farmingItemName = itemName
+    farmingItem = farmItem
     local amount = -1
     if (not farmItem.unlimited) then
-        amount = #farmPoints
+        amount = #(farmItem.points)
     end
 
     currentSequence = 0
@@ -519,7 +504,6 @@ local function startFarming(args)
         else
             if amount >= 0 and pickedFarms >= amount then
                 startFarm = false
-                markerCoords = nil
                 Utils.SendNotification(
                     {
                         description = locale("text.end_shift"),
@@ -527,7 +511,7 @@ local function startFarming(args)
                     }
                 )
             else
-                nextTask(farmItem.randomRoute, farmItem.unlimited)
+                nextTask(farmItem)
                 pickedFarms = pickedFarms + 1
             end
         end
@@ -562,7 +546,7 @@ local function showFarmMenu(farm)
     end
 
     if (startFarm) then
-        local item = Items[farmingItem]
+        local item = Items[farmingItemName]
         ctx.options[#ctx.options + 1] = {
             title = locale("menus.cancel_farm"),
             icon = "fa-solid fa-ban",
@@ -570,7 +554,7 @@ local function showFarmMenu(farm)
             onSelect = stopFarm,
             args = {
                 farm = farm,
-                itemName = farmingItem
+                itemName = farmingItemName
             }
         }
     end
@@ -598,8 +582,7 @@ local function checkAndOpen(farm, isPublic)
 end
 
 local function loadFarms()
-    emptyTargetZones(farmZones, "zone")
-    emptyTargetZones(farmTargets, "target")
+    emptyTargetElements(farmElements)
     for k, v in pairs(Farms) do
         local isPublic = not v.group["name"] or #v.group["name"] == 0
         if
@@ -612,7 +595,7 @@ local function loadFarms()
                 local zoneName = ("farm-%s"):format("start" .. k)
                 if Config.UseTarget then
                     table.insert(
-                        farmTargets,
+                        farmElements,
                         exports.ox_target:addSphereZone(
                             {
                                 coords = start.location,
@@ -693,7 +676,7 @@ RegisterNetEvent(
             group = PlayerJob.name
         end
 
-        if (group and farmingItem) then
+        if (group and farmingItemName) then
             stopFarm()
         end
     end
