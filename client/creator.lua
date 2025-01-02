@@ -698,16 +698,19 @@ local function setAnimation(args)
         )
         if input then
             local _anim = item.animation or {}
-            _anim.dict = input[1]
-            _anim.anim = input[2]
-            _anim.inSpeed = input[3]
-            _anim.outSpeed = input[4]
-            _anim.duration = input[5]
-            _anim.flag = input[6]
-            _anim.rate = input[7]
-            _anim.x = input[8]
-            _anim.y = input[9]
-            _anim.z = input[10] or false
+            if type(item.animation) == "string" then
+                _anim = {}
+            end
+            _anim['dict'] = input[1]
+            _anim['anim'] = input[2]
+            _anim['inSpeed'] = input[3]
+            _anim['outSpeed'] = input[4]
+            _anim['duration'] = input[5]
+            _anim['flag'] = input[6]
+            _anim['rate'] = input[7]
+            _anim['x'] = input[8]
+            _anim['y'] = input[9]
+            _anim['z'] = input[10]
             item.animation = _anim
             Farms[args.farmKey].config.items[args.itemKey] = item
         end
