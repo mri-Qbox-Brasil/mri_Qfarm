@@ -404,7 +404,7 @@ local function checkInteraction(point, item)
     return true
 end
 
-local function loadFarmPoints(itemName, item)
+local function loadFarmPoints(itemName, item, farm)
     for point, zone in pairs(item.points) do
         zone = vector3(zone.x, zone.y, zone.z)
         local label = ("farmZone-%s-%s"):format(itemName, point)
@@ -419,6 +419,7 @@ local function loadFarmPoints(itemName, item)
                         icon = "fa-solid fa-screwdriver-wrench",
                         label = locale("target.label", item.label),
                         canInteract = function()
+                            if farm.config.nostart then return true end
                             return checkInteraction(point, item)
                         end,
                         onSelect = function()
@@ -474,6 +475,13 @@ local function loadFarmPoints(itemName, item)
             )
         end
     end
+end
+
+local function startAutoFarm(args)
+    playerFarm = args.farm
+    local itemName = args.itemName
+    local farmItem = playerFarm.config.items[itemName]
+    loadFarmPoints(itemName, farmItem, playerFarm)
 end
 
 local function startFarming(args)
@@ -627,6 +635,20 @@ local function loadFarms()
                         farm = v
                     }
                 end
+            end
+            if v.config.nostart then
+                local farm = v
+
+                for itemName, _ in pairs(farm.config.items) do
+                    local item = Items[itemName]
+                    if not (item == nil) then
+                        startAutoFarm ({
+                                farm = farm,
+                                itemName = itemName
+                            })
+                    end
+                end
+
             end
         end
     end

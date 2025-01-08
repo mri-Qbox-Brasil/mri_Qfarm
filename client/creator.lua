@@ -161,6 +161,32 @@ local function changeFarmLocation(args)
     args.callback(args.farmKey)
 end
 
+local function changeFarmStart(args)
+    local alert = lib.alertDialog(
+        {
+            header = locale("actions.farm.nostart.alert.title"),
+            content = locale("actions.farm.nostart.alert.description"),
+            centered = true,
+            cancel = true,
+            labels = {
+                cancel = locale("actions.cancel"),
+                confirm = locale("actions.confirm")
+            }
+        }
+    )
+    if alert == "confirm" then
+        Farms[args.farmKey].config.nostart = not Farms[args.farmKey].config.nostart
+        lib.notify(
+            {
+                type = "success",
+                description = locale("notify.updated")
+            }
+        )
+    end
+    args.callback(args.farmKey)
+end
+
+
 local function changePointLocation(args)
     local location = nil
     local result = Utils.GetPedCoords()
@@ -1301,6 +1327,8 @@ local function actionMenu(key)
     if farm.config.start.location == nil then
         locationText = locale("actions.farm.set_location")
     end
+    local startDescription = locale("actions.farm.description_nostart", farm.config.nostart and locale("misc.yes") or locale("misc.no"))
+
     local ctx = {
         id = "action_farm",
         title = farm.name:upper(),
@@ -1346,6 +1374,19 @@ local function actionMenu(key)
                 iconAnimation = Config.IconAnimation,
                 onSelect = changeFarmLocation,
                 description = locale("actions.farm.description_location"),
+                disabled = farm.config.nostart,
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.farm.nostart"),
+                icon = "bolt",
+                iconAnimation = Config.IconAnimation,
+                iconColor = ifThen(farm.config.nostart, ColorScheme.success, ColorScheme.danger),
+                onSelect = changeFarmStart,
+                description = startDescription,
                 args = {
                     farmKey = key,
                     callback = actionMenu
