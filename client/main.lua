@@ -249,7 +249,7 @@ local function nextTask(farmItem)
     blip = createBlip(blipSettings)
 end
 
-local function openPoint(point, itemName, item)
+local function openPoint(point, itemName, item, farm)
     lib.hideTextUI()
     if not item["unlimited"] then
         if Config.UseTarget then
@@ -289,6 +289,9 @@ local function openPoint(point, itemName, item)
             -- Done
             lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
             finishPicking()
+            if farm.config.nostart then
+                openPoint(point, itemName, item, farm)
+            end
         end,
         function()
             -- Cancel
@@ -423,7 +426,7 @@ local function loadFarmPoints(itemName, item, farm)
                             return checkInteraction(point, item)
                         end,
                         onSelect = function()
-                            openPoint(point, itemName, item)
+                            openPoint(point, itemName, item, farm)
                         end
                     }
                 }
