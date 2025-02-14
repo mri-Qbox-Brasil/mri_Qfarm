@@ -250,7 +250,9 @@ local function nextTask(farmItem)
 end
 
 local function openPoint(point, itemName, item, farm)
-    print(point, itemName, json.encode(item), json.encode(farm))
+    if Config.Debug then
+        print(point, itemName, json.encode(item), json.encode(farm))
+    end
     lib.hideTextUI()
     if not item["unlimited"] then
         if Config.UseTarget then
@@ -645,7 +647,10 @@ local function loadFarms()
                 end
             end
 
-            print("debug farm:", v.name)
+            if Config.Debug then
+                print("debug farm:", v.name)
+            end
+
             if v.config.nostart then
                 local farm = v
 
