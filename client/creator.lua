@@ -1409,6 +1409,7 @@ local function actionMenu(key)
                 icon = "location-dot",
                 iconAnimation = Config.IconAnimation,
                 onSelect = teleportToFarm,
+                disabled = farm.config.nostart,
                 args = {
                     farmKey = key,
                     callback = actionMenu
