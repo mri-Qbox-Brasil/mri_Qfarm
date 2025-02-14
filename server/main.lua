@@ -100,8 +100,11 @@ lib.callback.register(
 lib.callback.register(
     "mri_Qfarm:server:getRewardItem",
     function(source, itemName, farmId)
+        print("debug getRewardItem: ", source, itemName, farmId)
         local src = source
         local cfg = nil
+
+        print("farms: " , json.encode(Farms))
 
         for k, v in pairs(Farms) do
             if v.farmId == farmId then
@@ -124,6 +127,8 @@ lib.callback.register(
             lib.notify(src, {type = "error", description = msg})
             return
         end
+
+        print("CFG", json.encode(cfg))
 
         local itemCfg = cfg.config.items[itemName]
 

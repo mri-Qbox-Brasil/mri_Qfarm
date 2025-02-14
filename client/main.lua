@@ -250,6 +250,7 @@ local function nextTask(farmItem)
 end
 
 local function openPoint(point, itemName, item, farm)
+    print(point, itemName, json.encode(item), json.encode(farm))
     lib.hideTextUI()
     if not item["unlimited"] then
         if Config.UseTarget then
@@ -287,7 +288,11 @@ local function openPoint(point, itemName, item, farm)
         duration,
         function()
             -- Done
-            lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
+            if not farm.config.nostart then
+                lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
+            else
+                lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, farm.farmId)
+            end
             finishPicking()
             if farm.config.nostart then
                 openPoint(point, itemName, item, farm)
@@ -639,6 +644,8 @@ local function loadFarms()
                     }
                 end
             end
+
+            print("debug farm:", v.name)
             if v.config.nostart then
                 local farm = v
 
