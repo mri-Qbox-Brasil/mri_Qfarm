@@ -290,15 +290,16 @@ local function openPoint(point, itemName, item, farm)
         duration,
         function()
             -- Done
-            if not farm.config.nostart then
+            if not farm or not farm.config.nostart then
                 lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
             else
                 lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, farm.farmId)
             end
             finishPicking()
-            if farm.config.nostart then
-                openPoint(point, itemName, item, farm)
-            end
+            -- loop futuro
+            -- if farm.config.nostart then
+            --     openPoint(point, itemName, item, farm)
+            -- end
         end,
         function()
             -- Cancel
@@ -429,7 +430,7 @@ local function loadFarmPoints(itemName, item, farm)
                         icon = "fa-solid fa-screwdriver-wrench",
                         label = locale("target.label", item.label),
                         canInteract = function()
-                            if farm.config.nostart then return true end
+                            if farm and farm.config and farm.config.nostart then return true end
                             return checkInteraction(point, item)
                         end,
                         onSelect = function()
