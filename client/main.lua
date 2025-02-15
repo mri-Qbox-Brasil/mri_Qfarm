@@ -724,7 +724,7 @@ RegisterNetEvent(
     "QBCore:Client:OnJobUpdate",
     function(JobInfo)
         PlayerJob = JobInfo
-        loadFarms()
+        -- loadFarms()
     end
 )
 
@@ -732,7 +732,7 @@ RegisterNetEvent(
     "QBCore:Client:OnGangUpdate",
     function(GangInfo)
         PlayerGang = GangInfo
-        loadFarms()
+        -- loadFarms()
     end
 )
 
