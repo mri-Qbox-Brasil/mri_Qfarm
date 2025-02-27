@@ -724,7 +724,7 @@ RegisterNetEvent(
     "QBCore:Client:OnJobUpdate",
     function(JobInfo)
         PlayerJob = JobInfo
-        -- loadFarms()
+        -- loadFarms() // Duplica pontos de coleta do farm sem inicio
     end
 )
 
@@ -732,7 +732,7 @@ RegisterNetEvent(
     "QBCore:Client:OnGangUpdate",
     function(GangInfo)
         PlayerGang = GangInfo
-        -- loadFarms()
+        -- loadFarms() // Duplica pontos de coleta do farm sem inicio
     end
 )
 
