@@ -57,8 +57,10 @@ local function deleteFarm(args)
         args.farmKey
     )
     if result then
-        lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
-        args.callback()
+        local result_db = lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
+        if result_db then
+            args.callback()
+        end
     else
         args.callbackCancel(args.farmKey)
     end
@@ -1305,8 +1307,10 @@ function ListItems(args)
 end
 
 local function saveFarm(args)
-    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
-    args.callback(args.farmKey)
+    local result_db = lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
+    if result_db then
+        args.callback(args.farmKey)
+    end
 end
 
 local function actionMenu(key)

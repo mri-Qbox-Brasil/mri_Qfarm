@@ -161,6 +161,9 @@ lib.callback.register(
     function(source, farm)
         local source = source
         local response = {type = "success", description = locale("actions.saved")}
+
+        if isPlayerNotAuthorized(source) then return end
+
         if farm.farmId then
             local affectedRows =
                 MySQL.Sync.execute(
@@ -194,6 +197,9 @@ lib.callback.register(
     function(source, farmId)
         local source = source
         local response = {type = "success", description = locale("actions.deleted")}
+
+        if isPlayerNotAuthorized(source) then return end
+
         if not farmId then
             TriggerClientEvent("ox_lib:notify", source, response)
             return
@@ -244,4 +250,21 @@ if GetResourceState("mri_Qbox") ~= "started" then
             lib.callback("mri_Qfarm:manageFarmsMenu", source)
         end
     )
+end
+
+
+
+function isPlayerAuthorized(src)
+    local isAuthorized = false
+    if IsPlayerAceAllowed(src, Config.AuthorizationManager ) then
+        isAuthorized = true;
+    else
+        lib.notify(src, {type = "error", description = locale('error.not_authorization')})
+    end
+
+    return isAuthorized
+end
+
+function isPlayerNotAuthorized(src)
+    return not isPlayerAuthorized(src)
 end
