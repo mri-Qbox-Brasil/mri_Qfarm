@@ -165,6 +165,7 @@
     "error.low_durability": "The item cannot be collected because %s's durability is too low.",
     "error.wrong_point_title": "Invalid collection point!",
     "error.wrong_point_message": "Am I in the correct location?",
+    "error.not_authorization": "User does not have the required permission.",
     "progress.pick_farm": "Collecting %s...",
     "progress.craft_progress": "Crafting %s...",
     "task.start_task": "[E] Collect",
