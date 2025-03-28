@@ -188,6 +188,31 @@ local function changeFarmStart(args)
     args.callback(args.farmKey)
 end
 
+local function changeFarmAFK(args)
+    local alert = lib.alertDialog(
+        {
+            header = locale("actions.farm.afk.alert.title"),
+            content = locale("actions.farm.afk.alert.description"),
+            centered = true,
+            cancel = true,
+            labels = {
+                cancel = locale("actions.cancel"),
+                confirm = locale("actions.confirm")
+            }
+        }
+    )
+    if alert == "confirm" then
+        Farms[args.farmKey].config.afk = not Farms[args.farmKey].config.afk
+        lib.notify(
+            {
+                type = "success",
+                description = locale("notify.updated")
+            }
+        )
+    end
+    args.callback(args.farmKey)
+end
+
 
 local function changePointLocation(args)
     local location = nil
@@ -1210,6 +1235,18 @@ local function itemActionMenu(args)
                 icon = "person-walking",
                 iconAnimation = Config.IconAnimation,
                 onSelect = setAnimation,
+                args = {
+                    farmKey = args.farmKey,
+                    itemKey = args.itemKey,
+                    callback = itemActionMenu
+                }
+            },
+            {
+                title = locale("actions.item.afk"),
+                description = locale("actions.farm.description_afk", Farms[args.farmKey].config.afk or false),
+                icon = "person-walking",
+                iconAnimation = Config.IconAnimation,
+                onSelect = changeFarmAFK,
                 args = {
                     farmKey = args.farmKey,
                     itemKey = args.itemKey,

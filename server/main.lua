@@ -146,10 +146,15 @@ lib.callback.register(
         end
 
         local qtd = math.random(itemCfg.min or 0, itemCfg.max or 1)
+        if not exports.ox_inventory:CanCarryItem(src, itemName, qtd) then return end
+
         itemAdd(src, itemName, qtd)
         if (itemCfg["extraItems"]) then
             for name, config in pairs(itemCfg.extraItems) do
-                itemAdd(src, name, math.random(config.min, config.max))
+                local qtd = math.random(config.min, config.max)
+                if not exports.ox_inventory:CanCarryItem(src, itemName, qtd) then return end
+
+                itemAdd(src, name, qtd)
             end
         end
         return true

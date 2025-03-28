@@ -296,10 +296,9 @@ local function openPoint(point, itemName, item, farm)
                 lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, farm.farmId)
             end
             finishPicking()
-            -- loop futuro
-            -- if farm.config.nostart then
-            --     openPoint(point, itemName, item, farm)
-            -- end
+            if farm.config.nostart and farm.config.afk then
+                openPoint(point, itemName, item, farm)
+            end
         end,
         function()
             -- Cancel
