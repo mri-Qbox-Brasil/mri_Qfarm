@@ -170,7 +170,7 @@
     "error.low_durability": "O item não pode ser coletado porque a durabilidade de %s está muito baixa.",
     "error.wrong_point_title": "Ponto de coleta inválido!",
     "error.wrong_point_message": "Estou no local correto?",
-    "error.not_authorization": "Usuário não tem a permissão necessária .",
+    "error.not_allowed": "Usuário não tem a permissão necessária .",
     "progress.pick_farm": "Coletando %s...",
     "progress.craft_progress": "Fabricação de %s...",
     "task.start_task": "[E] Coletar",

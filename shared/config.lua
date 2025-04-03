@@ -1,6 +1,6 @@
 Config = {}
 
-Config.AuthorizationManager = 'admin'
+Config.AuthorizationManager = "admin"
 Config.Debug = false
 Config.UseTarget = true
 Config.ShowMarker = false

@@ -8,6 +8,14 @@ local INSERT_DATA = "INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VAL
 local UPDATE_DATA = "UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?"
 local DELETE_DATA = "DELETE FROM mri_qfarm WHERE farmId = ?"
 
+local function isPlayerAuthorized(src)
+    if IsPlayerAceAllowed(src, Config.AuthorizationManager) then
+        return true
+    end
+    lib.notify(source, {type = "error", description = locale("error.not_allowed")})
+    return false
+end
+
 local function itemAdd(source, item, amount)
     if (amount > 0) then
         ox_inventory:AddItem(source, item, amount)
@@ -65,7 +73,7 @@ lib.callback.register(
 
 lib.callback.register(
     "mri_Qfarm:server:GainStress",
-    function(source,  item)
+    function(source, item)
         local src = source
         local player = exports.qbx_core:GetPlayer(src)
         if not player.PlayerData.metadata.stress then
@@ -107,7 +115,7 @@ lib.callback.register(
         local cfg = nil
 
         if Config.Debug then
-            print("farms: " , json.encode(Farms))
+            print("farms: ", json.encode(Farms))
         end
 
         for k, v in pairs(Farms) do
@@ -167,7 +175,9 @@ lib.callback.register(
         local source = source
         local response = {type = "success", description = locale("actions.saved")}
 
-        if isPlayerNotAuthorized(source) then return end
+        if not isPlayerAuthorized(source) then
+            return
+        end
 
         if farm.farmId then
             local affectedRows =
@@ -180,7 +190,6 @@ lib.callback.register(
                 response.description = locale("actions.not_saved")
             end
             Farms[locateFarm(farm.farmId)] = farm
-            dispatchEvents(source, response)
         else
             local farmId =
                 MySQL.Sync.insert(INSERT_DATA, {farm.name, json.encode(farm.config), json.encode(farm.group)})
@@ -191,8 +200,8 @@ lib.callback.register(
                 farm.farmId = farmId
                 Farms[#Farms + 1] = farm
             end
-            dispatchEvents(source, response)
         end
+        dispatchEvents(source, response)
         return true
     end
 )
@@ -203,7 +212,9 @@ lib.callback.register(
         local source = source
         local response = {type = "success", description = locale("actions.deleted")}
 
-        if isPlayerNotAuthorized(source) then return end
+        if not isPlayerAuthorized(source) then
+            return
+        end
 
         if not farmId then
             TriggerClientEvent("ox_lib:notify", source, response)
@@ -255,21 +266,4 @@ if GetResourceState("mri_Qbox") ~= "started" then
             lib.callback("mri_Qfarm:manageFarmsMenu", source)
         end
     )
-end
-
-
-
-function isPlayerAuthorized(src)
-    local isAuthorized = false
-    if IsPlayerAceAllowed(src, Config.AuthorizationManager ) then
-        isAuthorized = true;
-    else
-        lib.notify(src, {type = "error", description = locale('error.not_authorization')})
-    end
-
-    return isAuthorized
-end
-
-function isPlayerNotAuthorized(src)
-    return not isPlayerAuthorized(src)
 end
