@@ -296,7 +296,7 @@ local function openPoint(point, itemName, item, farm)
                 lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, farm.farmId)
             end
             finishPicking()
-            if farm.config.nostart and farm.config.afk then
+            if farm and farm.config.nostart and farm.config.afk then
                 openPoint(point, itemName, item, farm)
             end
         end,
@@ -317,102 +317,90 @@ local function checkInteraction(point, item)
     local collectItem = item["collectItem"] or {}
     local collectItemName = collectItem["name"]
     local collectItemDurability = collectItem["durability"]
-    if not playerFarm then
-        -- Verifica se o player está farmando agora
-        return false
-    end
+
+    if not playerFarm then return false end
 
     if not (currentPoint == point) then
-        -- Verifica se o player está na zona correta
-        Utils.SendNotification(
-            {
-                id = "farm:error.wrong_point",
-                title = locale("error.wrong_point_title"),
-                description = locale("error.wrong_point_message"),
-                type = "error"
-            }
-        )
+        Utils.SendNotification({
+            id = "farm:error.wrong_point",
+            title = locale("error.wrong_point_title"),
+            description = locale("error.wrong_point_message"),
+            type = "error"
+        })
         return false
     end
 
     if IsPedInAnyVehicle(cache.ped, false) then
-        -- Verifica se o player esta em um veiculo
-        Utils.SendNotification(
-            {
-                id = "farm:error.not_in_vehicle",
-                description = locale("error.not_in_vehicle"),
-                type = "error"
-            }
-        )
+        Utils.SendNotification({
+            id = "farm:error.not_in_vehicle",
+            description = locale("error.not_in_vehicle"),
+            type = "error"
+        })
         return false
     end
 
-    if
-        playerFarm.config["vehicle"] and
-            not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"]))
-     then
-        -- Verifica se o player esta no veículo certo
-        Utils.SendNotification(
-            {
-                id = "farm:error.incorrect_vehicle",
-                description = locale("error.incorrect_vehicle"),
-                type = "error"
-            }
-        )
+    if playerFarm.config["vehicle"] and
+        not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"])) then
+        Utils.SendNotification({
+            id = "farm:error.incorrect_vehicle",
+            description = locale("error.incorrect_vehicle"),
+            type = "error"
+        })
         return false
     end
 
     if collectItemName then
         local toolItems = exports.ox_inventory:Search("slots", collectItemName)
-        if not toolItems then
-            -- Verifica se o player tem o item certo
-            Utils.SendNotification(
-                {
-                    id = "farm:error.no_item",
-                    description = locale("error.no_item", collectItemName),
-                    type = "error"
-                }
-            )
+        if not toolItems or #toolItems == 0 then
+            Utils.SendNotification({
+                id = "farm:error.no_item",
+                description = locale("error.no_item", collectItemName),
+                type = "error"
+            })
             return false
         end
 
-        if collectItemDurability and collectItemDurability > 0 then
-            local toolItem
-            for k, v in pairs(toolItems) do
-                if v["metadata"] and v.metadata["durability"] and v.metadata.durability then
-                    toolItem = v
-                    break
+        local requiredDurability = collectItemDurability or 1
+        local toolItem = nil
+
+        for _, item in pairs(toolItems) do
+            local slot = item.slot
+
+            -- Se não tiver metadata, ou não tiver durability, solicita ao servidor que defina
+            if not item.metadata or item.metadata.durability == nil then
+                item.metadata = item.metadata or {}
+                item.metadata.durability = 100
+
+                local success = lib.callback.await('mri_Qfarm:setItemDurability', false, collectItemName, slot, item.metadata)
+                if not success then
+                    Utils.SendNotification({
+                        id = "farm:error.metadata_fail",
+                        description = "Erro ao aplicar metadados no item.",
+                        type = "error"
+                    })
+                    return false
                 end
             end
 
-            if toolItem then
-                if toolItem.metadata.durability < collectItemDurability then
-                    -- Verifica se o item tem durabilidade
-                    Utils.SendNotification(
-                        {
-                            id = "farm:error.low_durability",
-                            description = locale("error.low_durability", Items[collectItemName].label),
-                            type = "error"
-                        }
-                    )
-                    return false
-                end
-            else
-                -- Verifica se o item configurado está correto
-                Utils.SendNotification(
-                    {
-                        id = "farm:error.invalid_item_type",
-                        description = locale("error.invalid_item_type", collectItemName),
-                        type = "error"
-                    }
-                )
-                return false
+            if item.metadata.durability >= requiredDurability then
+                toolItem = item
+                break
             end
+        end
+
+        if not toolItem then
+            Utils.SendNotification({
+                id = "farm:error.low_durability",
+                description = locale("error.low_durability", Items[collectItemName].label),
+                type = "error"
+            })
+            return false
         end
     end
 
     return true
 end
+
 
 local function loadFarmPoints(itemName, item, farm)
     for point, zone in pairs(item.points) do

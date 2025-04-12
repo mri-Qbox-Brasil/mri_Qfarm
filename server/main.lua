@@ -267,3 +267,14 @@ if GetResourceState("mri_Qbox") ~= "started" then
         end
     )
 end
+
+lib.callback.register('mri_Qfarm:setItemDurability', function(source, itemName, slot, metadata)
+    local items = exports.ox_inventory:Search(source, 'slots', itemName)
+    for _, item in pairs(items) do
+        if item.slot == slot then
+            exports.ox_inventory:SetMetadata(source, slot, metadata)
+            return true
+        end
+    end
+    return false
+end)
