@@ -1,10 +1,12 @@
-Farms = GlobalState.Farms or {}
-ColorScheme = GlobalState.UIColors or {}
-Items = exports.ox_inventory:Items()
-ImageURL = "https://cfx-nui-ox_inventory/web/images"
-local Utils = lib.require("client/utils")
+local Farms = GlobalState.Farms or {}
+local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
-local QBCore = exports["qb-core"]:GetCoreObject()
+local Utils = lib.require("shared/utils")
+local Defaults = require("client/defaults")
+local Blips = lib.require("client/interaction/blips")
+local Text = lib.require("client/interaction/texts")
+local Targets = lib.require("client/interaction/targets")
+local Zones = lib.require("client/interaction/zones")
 
 local PlayerData = nil
 local PlayerJob = nil
@@ -25,98 +27,19 @@ local farmElements = {}
 local farmPointElements = {}
 local defaultBlipColor = 5
 
-local blipSettings = {
-    coords = {
-        x = 0,
-        y = 0,
-        z = 0
-    },
-    sprite = 1,
-    color = defaultBlipColor,
-    scale = 1.0,
-    shortRange = false,
-    route = true,
-    text = locale("misc.farm_point")
-}
-
-DefaultAnimCmd = "bumbin"
-
-DefaultAnim = {
-    dict = "amb@prop_human_bum_bin@idle_a",
-    anim = "idle_a",
-    inSpeed = 6.0,
-    outSpeed = -6.0,
-    duration = 2000,
-    flag = 1,
-    rate = 0,
-    x = 0,
-    y = 0,
-    z = 0
-}
-
-DefaultCollectTime = 7000
-
-local function showHelpNotification(text, delay, type, playSound)
-    local type = type or 0
-    local delay = delay or 5000
-    local playSound = playSound or false
-    BeginTextCommandDisplayHelp("STRING")
-    AddTextComponentSubstringKeyboardDisplay(text)
-    EndTextCommandDisplayHelp(type, false, playSound, delay)
-end
-
-local function createBlip(data)
-    local b = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
-    SetBlipSprite(b, data.sprite)
-    SetBlipColour(b, data.color)
-    SetBlipScale(b, data.scale)
-    SetBlipAsShortRange(b, data.shortRange)
-    SetBlipRoute(b, data.route)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(data.text)
-    EndTextCommandSetBlipName(b)
-    return b
-end
-
-local function deleteBlip(b)
-    if b and DoesBlipExist(b) then
-        RemoveBlip(b)
-    end
-end
-
-local function emptyTargetElements(tableObj)
-    if #tableObj > 0 then
-        for k, _ in pairs(tableObj) do
-            if not Config.UseTarget then
-                tableObj[k].zone:destroy()
-            else
-                exports.ox_target:removeZone(tableObj[k])
-            end
-            if Config.Debug then
-                print(string.format("Removing element: %s: %s", k, tableObj[k]))
-            end
-        end
-        table.clear(tableObj)
-    else
-        if Config.Debug then
-            print("Table is empty")
-        end
-    end
-end
-
 local function stopFarm()
     startFarm = false
     tasking = false
 
-    Utils.SendNotification(
+    Utils.sendNotification(
         {
             type = "error",
             description = locale("text.cancel_shift")
         }
     )
 
-    emptyTargetElements(farmPointElements)
-    deleteBlip(blip)
+    Targets.clear(farmPointElements)
+    Blips.clear()
     currentPoint = 0
     playerFarm = nil
     farmingItemName = nil
@@ -129,16 +52,17 @@ local function farmThread()
             while (startFarm) do
                 if Config.ShowMarker then
                     local playerLoc = GetEntityCoords(cache.ped)
-                    if currentPoint > 0 and
-                        GetDistanceBetweenCoords(
-                            playerLoc.x,
-                            playerLoc.y,
-                            playerLoc.z,
-                            farmingItem.points[currentPoint].x,
-                            farmingItem.points[currentPoint].y,
-                            farmingItem.points[currentPoint].z,
-                            true
-                        ) <= 30
+                    if
+                        currentPoint > 0 and
+                            GetDistanceBetweenCoords(
+                                playerLoc.x,
+                                playerLoc.y,
+                                playerLoc.z,
+                                farmingItem.points[currentPoint].x,
+                                farmingItem.points[currentPoint].y,
+                                farmingItem.points[currentPoint].z,
+                                true
+                            ) <= 30
                      then
                         DrawMarker(
                             2,
@@ -208,24 +132,19 @@ local function finishPicking()
     deleteBlip(blip)
 end
 
-local function actionProcess(name, description, duration, done, cancel)
-    QBCore.Functions.Progressbar(
-        "pick_" .. name,
-        description,
-        duration,
-        false,
-        true,
+local function actionProcess(description, duration)
+    return lib.progressBar(
         {
-            disableMovement = true,
-            disableCarMovement = true,
-            disableMouse = false,
-            disableCombat = true
-        },
-        nil,
-        nil,
-        nil,
-        done,
-        cancel
+            duration = duration,
+            label = description,
+            useWhileDead = false,
+            canCancel = true,
+            disable = {
+                car = true,
+                move = true,
+                combat = true
+            }
+        }
     )
 end
 
@@ -243,7 +162,8 @@ local function nextTask(farmItem)
         end
     end
     tasking = true
-    blipSettings.coords = vec3(farmItem.points[currentPoint].x, farmItem.points[currentPoint].y, farmItem.points[currentPoint].z)
+    blipSettings.coords =
+        vec3(farmItem.points[currentPoint].x, farmItem.points[currentPoint].y, farmItem.points[currentPoint].z)
     blipSettings.text = locale("misc.farm_point")
     blipSettings.sprite = 465
     blip = createBlip(blipSettings)
@@ -276,7 +196,7 @@ local function openPoint(point, itemName, item, farm)
         end
     end
     pickAnim(animation)
-    local itemRegister = Items[itemName]
+    local itemRegister = Utils.items[itemName]
     local collectItem = item["collectItem"] or {}
     if collectItem["name"] and collectItem["durability"] then
         lib.callback.await("mri_Qfarm:server:UseItem", false, item)
@@ -284,52 +204,49 @@ local function openPoint(point, itemName, item, farm)
     if (item["gainStress"] and item["gainStress"]["max"]) or 0 > 0 then
         lib.callback.await("mri_Qfarm:server:GainStress", false, item)
     end
-    actionProcess(
-        itemName,
-        locale("progress.pick_farm", itemRegister.label),
-        duration,
-        -- Após a coleta concluída, onde os logs de debug são exibidos
-        function()
+    if actionProcess(locale("progress.pick_farm", itemRegister.label), duration) then
         -- Done
         if not farm or not farm.config.nostart then
-        lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
-        print("^3[mri_Qfarm] Coleta concluída para: " .. playerFarm.name .. "^7")
+            lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
+            print("^3[mri_Qfarm] Coleta concluída para: " .. playerFarm.name .. "^7")
 
-        -- Adicionar print de debug para verificar a configuração de alerta
-        if playerFarm.config.policeAlert then
-        print("^2[mri_Qfarm] Configuração de alerta policial: ^7")
-        print("^2[mri_Qfarm] - Ativado: " .. (playerFarm.config.policeAlert.enabled and "Sim" or "Não") .. "^7")
-        print("^2[mri_Qfarm] - Chance: " .. (playerFarm.config.policeAlert.chance or 0) .. "%^7")
-        print("^2[mri_Qfarm] - Tipo: " .. (playerFarm.config.policeAlert.type or "drugsell") .. "^7")
+            -- Adicionar print de debug para verificar a configuração de alerta
+            if playerFarm.config.policeAlert then
+                print("^2[mri_Qfarm] Configuração de alerta policial: ^7")
+                print("^2[mri_Qfarm] - Ativado: " .. (playerFarm.config.policeAlert.enabled and "Sim" or "Não") .. "^7")
+                print("^2[mri_Qfarm] - Chance: " .. (playerFarm.config.policeAlert.chance or 0) .. "%^7")
+                print("^2[mri_Qfarm] - Tipo: " .. (playerFarm.config.policeAlert.type or "drugsell") .. "^7")
 
-        -- Adicionar informação sobre a configuração específica do item
-        local itemConfig = playerFarm.config.items[itemName]
-        if itemConfig and itemConfig.policeAlert then
-        print("^2[mri_Qfarm] Configuração de alerta específica do item: ^7")
-        print("^2[mri_Qfarm] - Chance do item: " .. (itemConfig.policeAlert.chance ~= nil and itemConfig.policeAlert.chance or "não definida") .. "%^7")
-        print("^2[mri_Qfarm] - Tipo do item: " .. (itemConfig.policeAlert.type or "não definido") .. "^7")
-        end
-        else
-        print("^1[mri_Qfarm] Configuração de alerta policial não encontrada^7")
-        end
-        end
-
-            finishPicking()
-            if farm and farm.config.nostart and farm.config.afk then
-                openPoint(point, itemName, item, farm)
+                -- Adicionar informação sobre a configuração específica do item
+                local itemConfig = playerFarm.config.items[itemName]
+                if itemConfig and itemConfig.policeAlert then
+                    print("^2[mri_Qfarm] Configuração de alerta específica do item: ^7")
+                    print(
+                        "^2[mri_Qfarm] - Chance do item: " ..
+                            (itemConfig.policeAlert.chance ~= nil and itemConfig.policeAlert.chance or "não definida") ..
+                                "%^7"
+                    )
+                    print("^2[mri_Qfarm] - Tipo do item: " .. (itemConfig.policeAlert.type or "não definido") .. "^7")
+                end
+            else
+                print("^1[mri_Qfarm] Configuração de alerta policial não encontrada^7")
             end
-        end,
-        function()
-            -- Cancel
-            Utils.SendNotification(
-                {
-                    description = locale("task.cancel_task"),
-                    type = "error"
-                }
-            )
-            finishPicking()
         end
-    )
+
+        finishPicking()
+        if farm and farm.config.nostart and farm.config.afk then
+            openPoint(point, itemName, item, farm)
+        end
+    else
+        -- Cancel
+        Utils.sendNotification(
+            {
+                description = locale("task.cancel_task"),
+                type = "error"
+            }
+        )
+        finishPicking()
+    end
 end
 
 local function cleanupDebugBlips()
@@ -365,45 +282,57 @@ local function checkInteraction(point, item)
     local collectItemName = collectItem["name"]
     local collectItemDurability = collectItem["durability"]
 
-    if not playerFarm then return false end
+    if not playerFarm then
+        return false
+    end
 
     if not (currentPoint == point) then
-        Utils.SendNotification({
-            id = "farm:error.wrong_point",
-            title = locale("error.wrong_point_title"),
-            description = locale("error.wrong_point_message"),
-            type = "error"
-        })
+        Utils.sendNotification(
+            {
+                id = "farm:error.wrong_point",
+                title = locale("error.wrong_point_title"),
+                description = locale("error.wrong_point_message"),
+                type = "error"
+            }
+        )
         return false
     end
 
     if IsPedInAnyVehicle(cache.ped, false) then
-        Utils.SendNotification({
-            id = "farm:error.not_in_vehicle",
-            description = locale("error.not_in_vehicle"),
-            type = "error"
-        })
+        Utils.sendNotification(
+            {
+                id = "farm:error.not_in_vehicle",
+                description = locale("error.not_in_vehicle"),
+                type = "error"
+            }
+        )
         return false
     end
 
-    if playerFarm.config["vehicle"] and
-        not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"])) then
-        Utils.SendNotification({
-            id = "farm:error.incorrect_vehicle",
-            description = locale("error.incorrect_vehicle"),
-            type = "error"
-        })
+    if
+        playerFarm.config["vehicle"] and
+            not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"]))
+     then
+        Utils.sendNotification(
+            {
+                id = "farm:error.incorrect_vehicle",
+                description = locale("error.incorrect_vehicle"),
+                type = "error"
+            }
+        )
         return false
     end
 
     if collectItemName then
         local toolItems = exports.ox_inventory:Search("slots", collectItemName)
         if not toolItems or #toolItems == 0 then
-            Utils.SendNotification({
-                id = "farm:error.no_item",
-                description = locale("error.no_item", collectItemName),
-                type = "error"
-            })
+            Utils.sendNotification(
+                {
+                    id = "farm:error.no_item",
+                    description = locale("error.no_item", collectItemName),
+                    type = "error"
+                }
+            )
             return false
         end
 
@@ -418,13 +347,16 @@ local function checkInteraction(point, item)
                 item.metadata = item.metadata or {}
                 item.metadata.durability = 100
 
-                local success = lib.callback.await('mri_Qfarm:setItemDurability', false, collectItemName, slot, item.metadata)
+                local success =
+                    lib.callback.await("mri_Qfarm:setItemDurability", false, collectItemName, slot, item.metadata)
                 if not success then
-                    Utils.SendNotification({
-                        id = "farm:error.metadata_fail",
-                        description = "Erro ao aplicar metadados no item.",
-                        type = "error"
-                    })
+                    Utils.sendNotification(
+                        {
+                            id = "farm:error.metadata_fail",
+                            description = "Erro ao aplicar metadados no item.",
+                            type = "error"
+                        }
+                    )
                     return false
                 end
             end
@@ -436,11 +368,13 @@ local function checkInteraction(point, item)
         end
 
         if not toolItem then
-            Utils.SendNotification({
-                id = "farm:error.low_durability",
-                description = locale("error.low_durability", Items[collectItemName].label),
-                type = "error"
-            })
+            Utils.sendNotification(
+                {
+                    id = "farm:error.low_durability",
+                    description = locale("error.low_durability", Utils.items[collectItemName].label),
+                    type = "error"
+                }
+            )
             return false
         end
     end
@@ -463,7 +397,9 @@ local function loadFarmPoints(itemName, item, farm)
                         icon = "fa-solid fa-screwdriver-wrench",
                         label = locale("target.label", item.label),
                         canInteract = function()
-                            if farm and farm.config and farm.config.nostart then return true end
+                            if farm and farm.config and farm.config.nostart then
+                                return true
+                            end
                             return checkInteraction(point, item)
                         end,
                         onSelect = function()
@@ -542,9 +478,9 @@ local function startFarming(args)
     end
 
     currentSequence = 0
-    Utils.SendNotification(
+    Utils.sendNotification(
         {
-            description = locale("text.start_shift", farmItem["customName"] or Items[itemName].label),
+            description = locale("text.start_shift", farmItem["customName"] or Utils.items[itemName].label),
             type = "info"
         }
     )
@@ -556,7 +492,7 @@ local function startFarming(args)
         else
             if amount >= 0 and pickedFarms >= amount then
                 startFarm = false
-                Utils.SendNotification(
+                Utils.sendNotification(
                     {
                         description = locale("text.end_shift"),
                         type = "info"
@@ -579,14 +515,14 @@ local function showFarmMenu(farm)
         options = {}
     }
     for itemName, v in pairs(farm.config.items) do
-        local item = Items[itemName]
+        local item = Utils.items[itemName]
         if not (item == nil) then
             ctx.options[#ctx.options + 1] = {
                 title = v["customName"] and v["customName"] ~= "" and v["customName"] or item.label,
                 description = item.description,
                 icon = string.format("%s/%s.png", ImageURL, item.name),
                 image = string.format("%s/%s.png", ImageURL, item.name),
-                metadata = Utils.GetItemMetadata(item, true),
+                metadata = Utils.getItemMetadata(item, true),
                 disabled = startFarm,
                 onSelect = startFarming,
                 args = {
@@ -598,7 +534,7 @@ local function showFarmMenu(farm)
     end
 
     if (startFarm) then
-        local item = Items[farmingItemName]
+        local item = Utils.items[farmingItemName]
         ctx.options[#ctx.options + 1] = {
             title = locale("menus.cancel_farm"),
             icon = "fa-solid fa-ban",
@@ -614,16 +550,6 @@ local function showFarmMenu(farm)
     lib.showContext(ctx.id)
 end
 
-local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
-    if requiredGroup then
-        for i = 1, #requiredGroup do
-            if requiredGroup[i] == PlayerGroupData.name then
-                return not PlayerGroupData.grade and true or tonumber(requiredGrade) <= PlayerGroupData.grade.level
-            end
-        end
-    end
-end
-
 local function checkAndOpen(farm, isPublic)
     if
         isPublic or roleCheck(PlayerJob, farm.group.name, farm.group.grade) or
@@ -634,22 +560,25 @@ local function checkAndOpen(farm, isPublic)
 end
 
 local function loadFarms()
-    emptyTargetElements(farmElements)
+    Targets.clear()
+    Bilps.clear()
+    Markers.clear()
+    Zones.clear()
     for k, v in pairs(Farms) do
-        local isPublic = not v.group["name"] or #v.group["name"] == 0
+        local isPublic = Utils.isPublic(v)
         if
-            isPublic or roleCheck(PlayerJob, v.group.name, v.group.grade) or
-                roleCheck(PlayerGang, v.group.name, v.group.grade)
+            isPublic or Utils.roleCheck(PlayerJob, v.group.name, v.group.grade) or
+                Utils.roleCheck(PlayerGang, v.group.name, v.group.grade)
          then
             if v.config.start["location"] then
                 local start = v.config.start
                 start.location = vector3(start.location.x, start.location.y, start.location.z)
                 local zoneName = ("farm-%s"):format("start" .. k)
                 if Config.UseTarget then
-                    table.insert(
-                        farmElements,
-                        exports.ox_target:addSphereZone(
-                            {
+                    Targets.add(
+                        {
+                            name = zoneName,
+                            data = {
                                 coords = start.location,
                                 name = zoneName,
                                 options = {
@@ -660,58 +589,40 @@ local function loadFarms()
                                     end
                                 }
                             }
-                        )
+                        }
                     )
                 else
-                    farmZones[#farmZones + 1] = {
-                        IsInside = false,
-                        zone = BoxZone:Create(
-                            start.location,
-                            start.length,
-                            start.width,
-                            {
-                                name = zoneName,
-                                minZ = start.location.z - 1.0,
-                                maxZ = start.location.z + 1.0,
-                                debugPoly = Config.Debug
+                    Zones.add(
+                        {
+                            name = zoneName,
+                            data = {
+                                coords = start.location,
+                                size = vector3(start.length, start.width, 1.0),
+                                debug = Config.Debug,
+                                onEnter = function()
+                                    checkAndOpen(v, isPublic)
+                                end
                             }
-                        ),
-                        farm = v
-                    }
+                        }
+                    )
                 end
-            end
-
-            if Config.Debug then
-                print("debug farm:", v.name)
             end
 
             if v.config.nostart then
                 local farm = v
 
                 for itemName, _ in pairs(farm.config.items) do
-                    local item = Items[itemName]
+                    local item = Utils.items[itemName]
                     if not (item == nil) then
-                        startAutoFarm ({
+                        startAutoFarm(
+                            {
                                 farm = farm,
                                 itemName = itemName
-                            })
+                            }
+                        )
                     end
                 end
-
             end
-        end
-    end
-
-    if not Config.UseTarget then
-        for _, zone in pairs(farmZones) do
-            zone.zone:onPlayerInOut(
-                function(isPointInside)
-                    zone.isInside = isPointInside
-                    if isPointInside then
-                        checkAndOpen(zone.farm)
-                    end
-                end
-            )
         end
     end
 end
@@ -720,23 +631,26 @@ AddEventHandler(
     "onResourceStart",
     function(resourceName)
         if resourceName == GetCurrentResourceName() then
-            PlayerData = QBCore.Functions.GetPlayerData()
+            PlayerData = QBX.PlayerData
             PlayerJob = PlayerData.job
             PlayerGang = PlayerData.gang
         end
     end
 )
 
-AddEventHandler('onResourceStop', function(resourceName)
-    if resourceName == GetCurrentResourceName() then
-        cleanupDebugBlips()
+AddEventHandler(
+    "onResourceStop",
+    function(resourceName)
+        if resourceName == GetCurrentResourceName() then
+            cleanupDebugBlips()
+        end
     end
-end)
+)
 
 RegisterNetEvent(
     "QBCore:Client:OnPlayerLoaded",
     function()
-        PlayerData = QBCore.Functions.GetPlayerData()
+        PlayerData = QBX.PlayerData
         PlayerJob = PlayerData.job
         PlayerGang = PlayerData.gang
         loadFarms()
@@ -764,7 +678,7 @@ RegisterNetEvent(
     "QBCore:Client:OnJobUpdate",
     function(JobInfo)
         PlayerJob = JobInfo
-        -- loadFarms() // Duplica pontos de coleta do farm sem inicio
+        loadFarms()
     end
 )
 
@@ -772,7 +686,7 @@ RegisterNetEvent(
     "QBCore:Client:OnGangUpdate",
     function(GangInfo)
         PlayerGang = GangInfo
-        -- loadFarms() // Duplica pontos de coleta do farm sem inicio
+        loadFarms()
     end
 )
 
@@ -785,67 +699,77 @@ RegisterNetEvent(
 )
 
 -- Add this event handler to receive police alerts from the server
-RegisterNetEvent("mri_Qfarm:client:PoliceAlert", function(data)
-    print("^2[mri_Qfarm] Evento de alerta policial recebido^7")
-    print("^2[mri_Qfarm] - Item que acionou o alerta: " .. data.itemName .. "^7")
+RegisterNetEvent(
+    "mri_Qfarm:client:PoliceAlert",
+    function(data)
+        print("^2[mri_Qfarm] Evento de alerta policial recebido^7")
+        print("^2[mri_Qfarm] - Item que acionou o alerta: " .. data.itemName .. "^7")
 
-    if not PlayerData or PlayerData.job.name ~= "police" or not PlayerData.job.onduty then
-        print("^1[mri_Qfarm] Alerta ignorado: jogador não é policial ou não está em serviço^7")
-        return
-    end
-
-    print("^2[mri_Qfarm] Criando blip para alerta policial^7")
-    print("^2[mri_Qfarm] - Tipo: " .. data.type .. "^7")
-    print("^2[mri_Qfarm] - Localização: " .. data.streetName .. "^7")
-    print("^2[mri_Qfarm] - Mensagem: " .. data.message .. "^7")
-    print("^2[mri_Qfarm] - Fazenda: " .. data.farmName .. "^7")
-
-    -- Create a blip at the location
-    local blip = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
-    SetBlipSprite(blip, 161) -- You can change this to another sprite
-    SetBlipScale(blip, 1.0)
-    SetBlipColour(blip, 1) -- Red color
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString("Atividade Suspeita")
-    EndTextCommandSetBlipName(blip)
-
-    -- Make the blip flash
-    SetBlipFlashes(blip, true)
-
-    -- Trigger the appropriate ps-dispatch alert based on the type
-    if exports["ps-dispatch"] then
-        print("^2[mri_Qfarm] Acionando ps-dispatch com tipo: " .. data.type .. "^7")
-        if data.type == "drugsell" then
-            exports["ps-dispatch"]:DrugSale()
-        elseif data.type == "susactivity" then
-            exports["ps-dispatch"]:SuspiciousActivity()
-        elseif data.type == "houserobbery" then
-            exports["ps-dispatch"]:HouseRobbery()
-        elseif data.type == "storerobbery" then
-            exports["ps-dispatch"]:StoreRobbery()
-        else
-            -- Fallback para alerta personalizado
-            exports["ps-dispatch"]:CustomAlert({
-                message = data.message,
-                dispatchCode = "10-31",
-                priority = 2
-            })
+        if not PlayerData or PlayerData.job.name ~= "police" or not PlayerData.job.onduty then
+            print("^1[mri_Qfarm] Alerta ignorado: jogador não é policial ou não está em serviço^7")
+            return
         end
-    else
-        print("^1[mri_Qfarm] ps-dispatch não encontrado^7")
+
+        print("^2[mri_Qfarm] Criando blip para alerta policial^7")
+        print("^2[mri_Qfarm] - Tipo: " .. data.type .. "^7")
+        print("^2[mri_Qfarm] - Localização: " .. data.streetName .. "^7")
+        print("^2[mri_Qfarm] - Mensagem: " .. data.message .. "^7")
+        print("^2[mri_Qfarm] - Fazenda: " .. data.farmName .. "^7")
+
+        -- Create a blip at the location
+        local blip = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
+        SetBlipSprite(blip, 161) -- You can change this to another sprite
+        SetBlipScale(blip, 1.0)
+        SetBlipColour(blip, 1) -- Red color
+        BeginTextCommandSetBlipName("STRING")
+        AddTextComponentString("Atividade Suspeita")
+        EndTextCommandSetBlipName(blip)
+
+        -- Make the blip flash
+        SetBlipFlashes(blip, true)
+
+        -- Trigger the appropriate ps-dispatch alert based on the type
+        if exports["ps-dispatch"] then
+            print("^2[mri_Qfarm] Acionando ps-dispatch com tipo: " .. data.type .. "^7")
+            if data.type == "drugsell" then
+                exports["ps-dispatch"]:DrugSale()
+            elseif data.type == "susactivity" then
+                exports["ps-dispatch"]:SuspiciousActivity()
+            elseif data.type == "houserobbery" then
+                exports["ps-dispatch"]:HouseRobbery()
+            elseif data.type == "storerobbery" then
+                exports["ps-dispatch"]:StoreRobbery()
+            else
+                -- Fallback para alerta personalizado
+                exports["ps-dispatch"]:CustomAlert(
+                    {
+                        message = data.message,
+                        dispatchCode = "10-31",
+                        priority = 2
+                    }
+                )
+            end
+        else
+            print("^1[mri_Qfarm] ps-dispatch não encontrado^7")
+        end
+
+        -- Send notification to the police officer
+        Utils.sendNotification(
+            {
+                title = "Alerta Policial",
+                description = "Atividade suspeita detectada em " .. data.streetName,
+                type = "inform"
+            }
+        )
+
+        -- Remove the blip after some time
+        print("^2[mri_Qfarm] Blip será removido em 60 segundos^7")
+        SetTimeout(
+            60000,
+            function()
+                RemoveBlip(blip)
+                print("^2[mri_Qfarm] Blip removido^7")
+            end
+        )
     end
-
-    -- Send notification to the police officer
-    Utils.SendNotification({
-        title = "Alerta Policial",
-        description = "Atividade suspeita detectada em " .. data.streetName,
-        type = "inform"
-    })
-
-    -- Remove the blip after some time
-    print("^2[mri_Qfarm] Blip será removido em 60 segundos^7")
-    SetTimeout(60000, function()
-        RemoveBlip(blip)
-        print("^2[mri_Qfarm] Blip removido^7")
-    end)
-end)
+)

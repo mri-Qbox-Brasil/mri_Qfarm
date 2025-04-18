@@ -1,6 +1,36 @@
-local Utils = {}
+local inventory = exports.ox_inventory
+local items = Inventory:Items()
+local Defaults = require("client/defaults")
 
-function Utils.GetPedCoords()
+local function itemAdd(source, item, amount)
+    if (amount > 0) then
+        inventory:AddItem(source, item, amount)
+    end
+end
+
+local function findById(id, farms)
+    for k, v in pairs(farms) do
+        if v.farmId == id then
+            return k
+        end
+    end
+end
+
+function sendNotification(data)
+    local notifyData = {
+        id = data["id"] or nil,
+        title = data["title"] or nil,
+        description = data["description"] or nil,
+        type = data["type"] or "info"
+    }
+    if (data["source"]) then
+        lib.notify(data["source"], notifyData)
+    else
+        lib.notify(notifyData)
+    end
+end
+
+local function getPedCoords()
     lib.hideTextUI()
     local text = {}
     table.insert(text, locale("actions.choose_location.1"))
@@ -38,7 +68,7 @@ function Utils.GetPedCoords()
     end
 end
 
-function Utils.TpToLoc(coords)
+local function tpToLoc(coords)
     if coords then
         DoScreenFadeOut(500)
         Wait(1000)
@@ -47,7 +77,7 @@ function Utils.TpToLoc(coords)
     end
 end
 
-function Utils.ConfirmationDialog(content)
+local function confirmationDialog(content)
     return lib.alertDialog(
         {
             header = locale("dialog.confirmation"),
@@ -62,20 +92,20 @@ function Utils.ConfirmationDialog(content)
     )
 end
 
-function Utils.GetLocation(coords)
+local function getLocation(coords)
     local streetName, crossingRoad = GetStreetNameAtCoord(coords.x, coords.y, coords.z)
     return GetStreetNameFromHashKey(streetName)
 end
 
-function Utils.GetLocationFormatted(location, key)
+local function getLocationFormatted(location, key)
     if key then
         return string.format("[%02d] - %s", key, Utils.GetLocation(location))
     else
-        return Utils.GetLocation(location)
+        return getLocation(location)
     end
 end
 
-function Utils.GetGroupGrades(group)
+local function getGroupGrades(group)
     local grades = {}
     for k, v in pairs(group.grades) do
         grades[#grades + 1] = {
@@ -86,7 +116,7 @@ function Utils.GetGroupGrades(group)
     return grades
 end
 
-function Utils.GetBaseGroups(named)
+local function getBaseGroups(named)
     local jobs = exports.qbx_core:GetJobs()
     local gangs = exports.qbx_core:GetGangs()
     local groups = {}
@@ -95,7 +125,7 @@ function Utils.GetBaseGroups(named)
             local data = {
                 value = k,
                 label = v.label,
-                grades = Utils.GetGroupGrades(v)
+                grades = getGroupGrades(v)
             }
             if named then
                 groups[k] = data
@@ -109,7 +139,7 @@ function Utils.GetBaseGroups(named)
             local data = {
                 value = k,
                 label = v.label,
-                grades = Utils.GetGroupGrades(v)
+                grades = getGroupGrades(v)
             }
             if named then
                 groups[k] = data
@@ -121,8 +151,8 @@ function Utils.GetBaseGroups(named)
     return groups
 end
 
-function Utils.GetGroupsLabel(groups)
-    local baseGroups = Utils.GetBaseGroups(true)
+local function getGroupsLabel(groups)
+    local baseGroups = getBaseGroups(true)
     local groupName = ""
     for i = 1, #(groups) do
         local group = locale("error.group_not_found", groups[i])
@@ -139,18 +169,18 @@ function Utils.GetGroupsLabel(groups)
     return groupName
 end
 
-function Utils.GetBaseItems()
-    local items = {}
-    for k, v in pairs(exports.ox_inventory:Items()) do
-        items[#items + 1] = {
+local function getBaseItems()
+    local result = {}
+    for k, v in pairs(items) do
+        result[#result + 1] = {
             value = k,
             label = string.format("%s (%s)", v.label, k)
         }
     end
-    return items
+    return result
 end
 
-function Utils.GetItemMetadata(item, hideSpawn)
+local function getItemMetadata(item, hideSpawn)
     local result = {}
     if not hideSpawn then
         result[#result + 1] = {
@@ -173,14 +203,14 @@ function Utils.GetItemMetadata(item, hideSpawn)
     return result
 end
 
-function Utils.GetMetadataFromFarm(key)
+local function getMetadataFromFarm(key)
     local data = {}
     local items = Farms[key].config.items
     for k, v in pairs(items) do
         if Items[k] then
             data[#data + 1] = {
                 label = locale("menus.route"),
-                value = string.format("%s (%s)", Items[k].label, k)
+                value = string.format("%s (%s)", items[k].label, k)
             }
         end
     end
@@ -195,22 +225,43 @@ function Utils.GetMetadataFromFarm(key)
     return data
 end
 
-function Utils.GetDefaultAnim(useEmoteMenu)
+local function getDefaultAnim(useEmoteMenu)
     if not useEmoteMenu then
-        return DefaultAnim
+        return Defaults.Anim
     end
-    return DefaultAnimCmd
+    return Defaults.AnimCmd
 end
 
-function Utils.SendNotification(data)
-    lib.notify(
-        {
-            id = data["id"] or nil,
-            title = data["title"] or nil,
-            description = data["description"] or nil,
-            type = data["type"] or "info"
-        }
-    )
+local function isPublic(farm)
+    return not farm.group["name"] or #farm.group["name"] == 0
 end
 
-return Utils
+local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
+    if requiredGroup then
+        for i = 1, #requiredGroup do
+            if requiredGroup[i] == PlayerGroupData.name then
+                return not PlayerGroupData.grade and true or tonumber(requiredGrade) <= PlayerGroupData.grade.level
+            end
+        end
+    end
+end
+
+return {
+    items = items,
+    inventory = inventory,
+    isPlayerAuthorized = isPlayerAuthorized,
+    itemAdd = itemAdd,
+    findById = findById,
+    sendNotification = sendNotification,
+    getBaseGroups = getBaseGroups,
+    getGroupsLabel = getGroupsLabel,
+    getBaseItems = getBaseItems,
+    getItemMetadata = getItemMetadata,
+    getMetadataFromFarm = getMetadataFromFarm,
+    -- Daqui pra frente só o client vai conseguir usar, cuidado!
+    getLocation = getLocation,
+    getLocationFormatted = getLocationFormatted,
+    getDefaultAnim = getDefaultAnim,
+    isPublic = isPublic,
+    roleCheck = roleCheck
+}

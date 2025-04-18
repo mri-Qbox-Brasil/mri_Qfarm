@@ -11,6 +11,7 @@ ox_lib "locale"
 
 shared_scripts {
     "@ox_lib/init.lua",
+    "@qbx_core/modules/playerdata.lua",
     "shared/*.lua"
 }
 
@@ -20,16 +21,11 @@ server_scripts {
 }
 
 client_scripts {
-    "@PolyZone/client.lua",
-    "@PolyZone/BoxZone.lua",
-    "client/*.lua"
+    "client/**/*.lua"
 }
 
 dependencies {
     "qbx_core",
-    "PolyZone",
-    "ox_lib",
-    "oxmysql",
 }
 
 files {

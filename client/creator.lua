@@ -1,4 +1,7 @@
-local Utils = lib.require("client/utils")
+local Utils = lib.require("shared/utils")
+local Farms = GlobalState.Farms or {}
+local ImageURL = "https://cfx-nui-ox_inventory/web/images"
+
 local newFarm = {
     name = nil,
     config = {
@@ -26,7 +29,7 @@ local newItem = {
     randomRoute = false,
     unlimited = false,
     points = {},
-    animation = Utils.GetDefaultAnim(Config.UseEmoteMenu),
+    animation = Utils.getDefaultAnim(Config.UseEmoteMenu),
     collectTime = DefaultCollectTime,
     collectItem = {
         name = nil,
@@ -43,7 +46,7 @@ local function ifThen(condition, ifTrue, ifFalse)
 end
 
 local function delete(caption, tableObj, key)
-    if Utils.ConfirmationDialog(caption) == "confirm" then
+    if Utils.confirmationDialog(caption) == "confirm" then
         if type(key) == "number" then
             table.remove(tableObj, key)
         else
@@ -62,10 +65,8 @@ local function deleteFarm(args)
         args.farmKey
     )
     if result then
-        local result_db = lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
-        if result_db then
-            args.callback()
-        end
+        lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
+        args.callback()
     else
         args.callbackCancel(args.farmKey)
     end
@@ -148,7 +149,7 @@ end
 
 local function changeFarmLocation(args)
     local location = nil
-    local result = Utils.GetPedCoords()
+    local result = Utils.getPedCoords()
     if result.result == "choose" then
         location = result.coords
     end
@@ -336,7 +337,7 @@ end
 
 local function changePointLocation(args)
     local location = nil
-    local result = Utils.GetPedCoords()
+    local result = Utils.getPedCoords()
     if result.result == "choose" then
         location = result.coords
     end
@@ -405,7 +406,7 @@ local function setFarmGroup(args)
                 type = "multi-select",
                 label = locale("creator.groups"),
                 description = string.sub(locale("creator.description_group"), 1, -4),
-                options = Utils.GetBaseGroups(),
+                options = Utils.getBaseGroups(),
                 default = farm.group["name"],
                 required = false,
                 searchable = true
@@ -420,12 +421,12 @@ local function setFarmGroup(args)
 end
 
 local function teleportToFarm(args)
-    Utils.TpToLoc(Farms[args.farmKey].config.start.location)
+    Utils.tpToLoc(Farms[args.farmKey].config.start.location)
     args.callback(args.farmKey)
 end
 
 local function teleportToPoint(args)
-    Utils.TpToLoc(Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
+    Utils.tpToLoc(Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
     args.callback(
         {
             farmKey = args.farmKey,
@@ -469,7 +470,7 @@ local function selItemInput(args, extra)
                 label = locale("items.name"),
                 description = locale("items.description_name"),
                 default = (extra and (args["extraItemKey"] or "")) or args["itemKey"],
-                options = Utils.GetBaseItems(),
+                options = Utils.getBaseItems(),
                 required = true,
                 searchable = true,
                 clearable = true
@@ -642,7 +643,7 @@ local function setCollectItem(args)
                 label = locale("items.name"),
                 description = locale("items.description_collect_item"),
                 default = collectItemName or "",
-                options = Utils.GetBaseItems(),
+                options = Utils.getBaseItems(),
                 searchable = true,
                 clearable = true
             }
@@ -1211,7 +1212,7 @@ local function addPoints(args)
     local item = farm.config.items[args.itemKey]
     while keepLoop do
         Wait(0)
-        local result = Utils.GetPedCoords()
+        local result = Utils.getPedCoords()
         keepLoop = result.result == "choose"
         if keepLoop then
             item.points[#item.points + 1] = result.coords
@@ -1256,7 +1257,7 @@ function listPoints(args)
     local item = farm.config.items[args.itemKey]
     for k, v in pairs(item.points) do
         ctx.options[#ctx.options + 1] = {
-            title = Utils.GetLocationFormatted(v, k),
+            title = Utils.getLocationFormatted(v, k),
             description = string.format("X: %.2f, Y: %.2f, Z: %.2f", v.x, v.y, v.z),
             icon = "map-pin",
             iconAnimation = Config.IconAnimation,
@@ -1266,7 +1267,7 @@ function listPoints(args)
                 farmKey = args.farmKey,
                 itemKey = args.itemKey,
                 pointKey = k,
-                name = Utils.GetLocationFormatted(v, k)
+                name = Utils.getLocationFormatted(v, k)
             }
         }
     end
@@ -1774,7 +1775,7 @@ function ListItems(args)
                 title = v["customName"] and v["customName"] ~= "" and v["customName"] or Items[k].label,
                 icon = string.format("%s/%s.png", ImageURL, Items[k].name),
                 image = string.format("%s/%s.png", ImageURL, Items[k].name),
-                metadata = Utils.GetItemMetadata(Items[k]),
+                metadata = Utils.getItemMetadata(Items[k]),
                 description = Items[k].description,
                 onSelect = itemActionMenu,
                 args = {
@@ -1804,20 +1805,18 @@ function ListItems(args)
 end
 
 local function saveFarm(args)
-    local result_db = lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
-    if result_db then
-        args.callback(args.farmKey)
-    end
+    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
+    args.callback(args.farmKey)
 end
 
 local function actionMenu(key)
     local farm = Farms[key]
     local groupName = locale("creator.no_group")
     local grade = "0"
-    local groups = Utils.GetBaseGroups(true)
+    local groups = Utils.getBaseGroups(true)
     local disableGradeSet = false
     if farm.group["name"] then
-        groupName = Utils.GetGroupsLabel(farm.group["name"])
+        groupName = Utils.getGroupsLabel(farm.group["name"])
     else
         disableGradeSet = true
     end
@@ -2023,7 +2022,7 @@ function ListFarm()
     for k, v in pairs(Farms) do
         local groupName = locale("creator.no_group")
         if v.group["name"] then
-            groupName = Utils.GetGroupsLabel(v.group["name"])
+            groupName = Utils.getGroupsLabel(v.group["name"])
         end
         local description = locale("menus.description_farm", locale("creator.groups"), groupName)
         ctx.options[#ctx.options + 1] = {
@@ -2031,7 +2030,7 @@ function ListFarm()
             icon = "warehouse",
             iconAnimation = Config.IconAnimation,
             description = description,
-            metadata = Utils.GetMetadataFromFarm(k),
+            metadata = Utils.getMetadataFromFarm(k),
             onSelect = function()
                 actionMenu(k)
             end
