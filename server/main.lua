@@ -317,6 +317,47 @@ lib.callback.register(
     end
 )
 
+-- Add this callback to handle farm duplication
+lib.callback.register(
+    "mri_Qfarm:server:DuplicateFarm",
+    function(source, farmId)
+        local source = source
+        local response = {type = "success", description = locale("actions.duplicated")}
+
+        if not isPlayerAuthorized(source) then
+            return
+        end
+
+        local farmIndex = locateFarm(farmId)
+        if not farmIndex or not Farms[farmIndex] then
+            response.type = "error"
+            response.description = locale("error.farm_not_found", farmId)
+            dispatchEvents(source, response)
+            return false
+        end
+
+        local originalFarm = Farms[farmIndex]
+        local newFarm = {
+            name = originalFarm.name .. " (copy)",
+            config = json.decode(json.encode(originalFarm.config)), -- Deep copy
+            group = json.decode(json.encode(originalFarm.group))    -- Deep copy
+        }
+
+        local farmId = MySQL.Sync.insert(INSERT_DATA, {newFarm.name, json.encode(newFarm.config), json.encode(newFarm.group)})
+        if farmId <= 0 then
+            response.type = "error"
+            response.description = locale("actions.not_duplicated")
+            dispatchEvents(source, response)
+            return false
+        else
+            newFarm.farmId = farmId
+            Farms[#Farms + 1] = newFarm
+            dispatchEvents(source, response)
+            return true
+        end
+    end
+)
+
 AddEventHandler(
     "onResourceStart",
     function(resource)
