@@ -288,13 +288,32 @@ local function openPoint(point, itemName, item, farm)
         itemName,
         locale("progress.pick_farm", itemRegister.label),
         duration,
+        -- Após a coleta concluída, onde os logs de debug são exibidos
         function()
-            -- Done
-            if not farm or not farm.config.nostart then
-                lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
-            else
-                lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, farm.farmId)
-            end
+        -- Done
+        if not farm or not farm.config.nostart then
+        lib.callback.await("mri_Qfarm:server:getRewardItem", false, itemName, playerFarm.farmId)
+        print("^3[mri_Qfarm] Coleta concluída para: " .. playerFarm.name .. "^7")
+
+        -- Adicionar print de debug para verificar a configuração de alerta
+        if playerFarm.config.policeAlert then
+        print("^2[mri_Qfarm] Configuração de alerta policial: ^7")
+        print("^2[mri_Qfarm] - Ativado: " .. (playerFarm.config.policeAlert.enabled and "Sim" or "Não") .. "^7")
+        print("^2[mri_Qfarm] - Chance: " .. (playerFarm.config.policeAlert.chance or 0) .. "%^7")
+        print("^2[mri_Qfarm] - Tipo: " .. (playerFarm.config.policeAlert.type or "drugsell") .. "^7")
+
+        -- Adicionar informação sobre a configuração específica do item
+        local itemConfig = playerFarm.config.items[itemName]
+        if itemConfig and itemConfig.policeAlert then
+        print("^2[mri_Qfarm] Configuração de alerta específica do item: ^7")
+        print("^2[mri_Qfarm] - Chance do item: " .. (itemConfig.policeAlert.chance ~= nil and itemConfig.policeAlert.chance or "não definida") .. "%^7")
+        print("^2[mri_Qfarm] - Tipo do item: " .. (itemConfig.policeAlert.type or "não definido") .. "^7")
+        end
+        else
+        print("^1[mri_Qfarm] Configuração de alerta policial não encontrada^7")
+        end
+        end
+
             finishPicking()
             if farm and farm.config.nostart and farm.config.afk then
                 openPoint(point, itemName, item, farm)
@@ -311,6 +330,34 @@ local function openPoint(point, itemName, item, farm)
             finishPicking()
         end
     )
+end
+
+local function cleanupDebugBlips()
+    if Farms then
+        for _, farm in pairs(Farms) do
+            if farm.config and farm.config.items then
+                for _, item in pairs(farm.config.items) do
+                    -- Clean up blips
+                    if item.debugBlips then
+                        for _, blip in ipairs(item.debugBlips) do
+                            if DoesBlipExist(blip) then
+                                RemoveBlip(blip)
+                            end
+                        end
+                        item.debugBlips = nil
+                    end
+
+                    -- Clean up polyzones
+                    if item.debugZones then
+                        for _, zone in ipairs(item.debugZones) do
+                            zone:remove()
+                        end
+                        item.debugZones = nil
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function checkInteraction(point, item)
@@ -400,7 +447,6 @@ local function checkInteraction(point, item)
 
     return true
 end
-
 
 local function loadFarmPoints(itemName, item, farm)
     for point, zone in pairs(item.points) do
@@ -681,6 +727,12 @@ AddEventHandler(
     end
 )
 
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        cleanupDebugBlips()
+    end
+end)
+
 RegisterNetEvent(
     "QBCore:Client:OnPlayerLoaded",
     function()
@@ -704,6 +756,7 @@ RegisterNetEvent(
         if (group and farmingItemName) then
             stopFarm()
         end
+        cleanupDebugBlips()
     end
 )
 
@@ -730,3 +783,69 @@ RegisterNetEvent(
         loadFarms()
     end
 )
+
+-- Add this event handler to receive police alerts from the server
+RegisterNetEvent("mri_Qfarm:client:PoliceAlert", function(data)
+    print("^2[mri_Qfarm] Evento de alerta policial recebido^7")
+    print("^2[mri_Qfarm] - Item que acionou o alerta: " .. data.itemName .. "^7")
+
+    if not PlayerData or PlayerData.job.name ~= "police" or not PlayerData.job.onduty then
+        print("^1[mri_Qfarm] Alerta ignorado: jogador não é policial ou não está em serviço^7")
+        return
+    end
+
+    print("^2[mri_Qfarm] Criando blip para alerta policial^7")
+    print("^2[mri_Qfarm] - Tipo: " .. data.type .. "^7")
+    print("^2[mri_Qfarm] - Localização: " .. data.streetName .. "^7")
+    print("^2[mri_Qfarm] - Mensagem: " .. data.message .. "^7")
+    print("^2[mri_Qfarm] - Fazenda: " .. data.farmName .. "^7")
+
+    -- Create a blip at the location
+    local blip = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
+    SetBlipSprite(blip, 161) -- You can change this to another sprite
+    SetBlipScale(blip, 1.0)
+    SetBlipColour(blip, 1) -- Red color
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString("Atividade Suspeita")
+    EndTextCommandSetBlipName(blip)
+
+    -- Make the blip flash
+    SetBlipFlashes(blip, true)
+
+    -- Trigger the appropriate ps-dispatch alert based on the type
+    if exports["ps-dispatch"] then
+        print("^2[mri_Qfarm] Acionando ps-dispatch com tipo: " .. data.type .. "^7")
+        if data.type == "drugsell" then
+            exports["ps-dispatch"]:DrugSale()
+        elseif data.type == "susactivity" then
+            exports["ps-dispatch"]:SuspiciousActivity()
+        elseif data.type == "houserobbery" then
+            exports["ps-dispatch"]:HouseRobbery()
+        elseif data.type == "storerobbery" then
+            exports["ps-dispatch"]:StoreRobbery()
+        else
+            -- Fallback para alerta personalizado
+            exports["ps-dispatch"]:CustomAlert({
+                message = data.message,
+                dispatchCode = "10-31",
+                priority = 2
+            })
+        end
+    else
+        print("^1[mri_Qfarm] ps-dispatch não encontrado^7")
+    end
+
+    -- Send notification to the police officer
+    Utils.SendNotification({
+        title = "Alerta Policial",
+        description = "Atividade suspeita detectada em " .. data.streetName,
+        type = "inform"
+    })
+
+    -- Remove the blip after some time
+    print("^2[mri_Qfarm] Blip será removido em 60 segundos^7")
+    SetTimeout(60000, function()
+        RemoveBlip(blip)
+        print("^2[mri_Qfarm] Blip removido^7")
+    end)
+end)
