@@ -3,7 +3,7 @@ local target = exports.ox_target
 
 local function add(item)
     if Config.Debug then
-        print(string.format("Adding element: %s", name))
+        print(string.format("Adding element: %s", item.name))
     end
     target:addSphereZone(item.data)
     targets[item.name] = item.data

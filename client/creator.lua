@@ -1,5 +1,5 @@
 local Utils = lib.require("shared/utils")
-local Farms = GlobalState.Farms or {}
+local Defaults = require("client/defaults")
 local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
 local newFarm = {
@@ -57,11 +57,11 @@ local function delete(caption, tableObj, key)
 end
 
 local function deleteFarm(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.farm"), Farms[args.farmKey].name),
-        Farms,
+        locale("actions.confirmation_description", locale("actions.farm"), Defaults.Farms[args.farmKey].name),
+        Defaults.Farms,
         args.farmKey
     )
     if result then
@@ -80,7 +80,7 @@ local function deleteItem(args)
     local result =
         delete(
         locale("actions.confirmation_description", locale("actions.item"), itemLabel),
-        Farms[args.farmKey].config.items,
+        Defaults.Farms[args.farmKey].config.items,
         args.itemKey
     )
     if result then
@@ -103,7 +103,7 @@ local function deletePoint(args)
     local result =
         delete(
         locale("actions.confirmation_description", locale("actions.point"), args.name),
-        Farms[args.farmKey].config.items[args.itemKey].points,
+        Defaults.Farms[args.farmKey].config.items[args.itemKey].points,
         args.pointKey
     )
     args.callback(
@@ -118,7 +118,7 @@ local function deleteExtraItem(args)
     local result =
         delete(
         locale("actions.confirmation_description", locale("actions.extra_item"), Items[args.extraItemKey].label),
-        Farms[args.farmKey].config.items[args.itemKey].extraItems,
+        Defaults.Farms[args.farmKey].config.items[args.itemKey].extraItems,
         args.extraItemKey
     )
     args.callback(
@@ -132,7 +132,7 @@ end
 local function exportFarm(args)
     lib.setClipboard(
         json.encode(
-            Farms[args.farmKey],
+            Defaults.Farms[args.farmKey],
             {
                 indent = true
             }
@@ -154,7 +154,7 @@ local function changeFarmLocation(args)
         location = result.coords
     end
     if location then
-        Farms[args.farmKey].config.start = {
+        Defaults.Farms[args.farmKey].config.start = {
             location = location,
             width = Config.FarmBoxWidth,
             length = Config.FarmBoxLength
@@ -183,7 +183,7 @@ local function changeFarmStart(args)
         }
     )
     if alert == "confirm" then
-        Farms[args.farmKey].config.nostart = not Farms[args.farmKey].config.nostart
+        Defaults.Farms[args.farmKey].config.nostart = not Defaults.Farms[args.farmKey].config.nostart
         lib.notify(
             {
                 type = "success",
@@ -208,7 +208,7 @@ local function changeFarmAFK(args)
         }
     )
     if alert == "confirm" then
-        Farms[args.farmKey].config.afk = not Farms[args.farmKey].config.afk
+        Defaults.Farms[args.farmKey].config.afk = not Defaults.Farms[args.farmKey].config.afk
         lib.notify(
             {
                 type = "success",
@@ -233,14 +233,14 @@ local function togglePoliceAlert(args)
     })
 
     if alert == "confirm" then
-        if not Farms[args.farmKey].config.policeAlert then
-            Farms[args.farmKey].config.policeAlert = {
+        if not Defaults.Farms[args.farmKey].config.policeAlert then
+            Defaults.Farms[args.farmKey].config.policeAlert = {
                 enabled = true,
                 chance = 30,
                 type = "drugsell"
             }
         else
-            Farms[args.farmKey].config.policeAlert.enabled = not Farms[args.farmKey].config.policeAlert.enabled
+            Defaults.Farms[args.farmKey].config.policeAlert.enabled = not Defaults.Farms[args.farmKey].config.policeAlert.enabled
         end
 
         lib.notify({
@@ -254,7 +254,7 @@ end
 
 -- Nova função para configurar a chance de alerta policial
 local function setPoliceAlertChance(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
 
     -- Garantir que a estrutura policeAlert existe
     if not farm.config.policeAlert then
@@ -291,7 +291,7 @@ local function setPoliceAlertChance(args)
 end
 
 local function setPoliceAlertType(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
 
     -- Garantir que a estrutura policeAlert existe
     if not farm.config.policeAlert then
@@ -342,7 +342,7 @@ local function changePointLocation(args)
         location = result.coords
     end
     if location then
-        Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey] = location
+        Defaults.Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey] = location
         lib.notify(
             {
                 type = "success",
@@ -366,7 +366,7 @@ local function setFarmName(args)
     end
     local farm = {}
     if key then
-        farm = Farms[key]
+        farm = Defaults.Farms[key]
     else
         table.clone(newFarm, farm)
     end
@@ -387,17 +387,17 @@ local function setFarmName(args)
     if input then
         farm.name = input[1]
         if not key then
-            key = #Farms + 1
-            Farms[key] = farm
+            key = #Defaults.Farms + 1
+            Defaults.Farms[key] = farm
         end
-        Farms[key] = farm
+        Defaults.Farms[key] = farm
     end
     args.callback(key)
 end
 
 local function setFarmGroup(args)
     local key = args.farmKey
-    local farm = Farms[key]
+    local farm = Defaults.Farms[key]
     local input =
         lib.inputDialog(
         title,
@@ -415,18 +415,18 @@ local function setFarmGroup(args)
     )
     if input then
         farm.group["name"] = input[1]
-        Farms[key] = farm
+        Defaults.Farms[key] = farm
     end
     args.callback(key)
 end
 
 local function teleportToFarm(args)
-    Utils.tpToLoc(Farms[args.farmKey].config.start.location)
+    Utils.tpToLoc(Defaults.Farms[args.farmKey].config.start.location)
     args.callback(args.farmKey)
 end
 
 local function teleportToPoint(args)
-    Utils.tpToLoc(Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
+    Utils.tpToLoc(Defaults.Farms[args.farmKey].config.items[args.itemKey].points[args.pointKey])
     args.callback(
         {
             farmKey = args.farmKey,
@@ -438,7 +438,7 @@ end
 
 local function setFarmGrade(args)
     local key = args.farmKey
-    local farm = Farms[key]
+    local farm = Defaults.Farms[key]
     local input =
         lib.inputDialog(
         title,
@@ -456,7 +456,7 @@ local function setFarmGrade(args)
     )
     if input then
         farm.group["grade"] = tostring(input[1])
-        Farms[key] = farm
+        Defaults.Farms[key] = farm
     end
     args.callback(key)
 end
@@ -480,7 +480,7 @@ local function selItemInput(args, extra)
 end
 
 local function setItem(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local input = selItemInput(args)
     if input then
         if input[1] ~= args.itemKey then
@@ -490,7 +490,7 @@ local function setItem(args)
                 farm.config.items[args.itemKey] = nil
             end
             farm.config.items[input[1]] = temp
-            Farms[args.farmKey] = farm
+            Defaults.Farms[args.farmKey] = farm
         end
     end
     args.callback(
@@ -546,7 +546,7 @@ local function selMinMaxInput(args)
 end
 
 local function setName(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         lib.inputDialog(
         locale("route.setname"),
@@ -563,7 +563,7 @@ local function setName(args)
     )
     if input then
         item["customName"] = input[1]
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -574,7 +574,7 @@ local function setName(args)
 end
 
 local function setMinMax(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         selMinMaxInput(
         {
@@ -591,7 +591,7 @@ local function setMinMax(args)
     if input then
         item.min = tonumber(input[1])
         item.max = tonumber(input[2])
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -602,7 +602,7 @@ local function setMinMax(args)
 end
 
 local function setCollectTime(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         lib.inputDialog(
         locale("actions.item.collect_time"),
@@ -620,7 +620,7 @@ local function setCollectTime(args)
 
     if input then
         item.collectTime = input[1] or DefaultCollectTime
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -631,7 +631,7 @@ local function setCollectTime(args)
 end
 
 local function setCollectItem(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local collectItem = item["collectItem"] or {}
     local collectItemName = collectItem["name"]
     local input =
@@ -657,7 +657,7 @@ local function setCollectItem(args)
         else
             item["collectItem"] = nil
         end
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -668,7 +668,7 @@ local function setCollectItem(args)
 end
 
 function setItemDurability(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         lib.inputDialog(
         locale("actions.item.item_durability"),
@@ -691,7 +691,7 @@ function setItemDurability(args)
         else
             item["collectItem"]["durability"] = nil
         end
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -702,7 +702,7 @@ function setItemDurability(args)
 end
 
 function setGainStress(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local gainStress = item["gainStress"] or {min = 0, max = 1}
     local input =
         selMinMaxInput(
@@ -721,7 +721,7 @@ function setGainStress(args)
         gainStress["min"] = tonumber(input[1]) or 0
         gainStress["max"] = tonumber(input[2]) or 0
         item["gainStress"] = gainStress
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -733,7 +733,7 @@ end
 
 -- Adicionar esta função para configurar o alerta policial por item
 local function setItemPoliceAlert(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
 
     -- Garantir que a estrutura policeAlert do item existe
@@ -776,7 +776,7 @@ end
 
 -- Adicionar esta função para configurar o tipo de alerta policial por item
 local function setItemPoliceAlertType(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
 
     -- Garantir que a estrutura policeAlert do item existe
@@ -825,7 +825,7 @@ local function setItemPoliceAlertType(args)
 end
 
 local function resetItemPoliceAlert(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
 
     -- Remove the item-specific police alert configuration
@@ -915,14 +915,14 @@ local function importFarm()
 end
 
 local function toggleDebugPoints(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
 
     -- Toggle debug state
     item.debugPoints = not item.debugPoints
 
     -- Update the farm item
-    Farms[args.farmKey].config.items[args.itemKey] = item
+    Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
 
     -- Handle blips based on debug state
     if item.debugPoints then
@@ -988,7 +988,7 @@ local function toggleDebugPoints(args)
 end
 
 local function setRandom(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         lib.inputDialog(
         locale("actions.item.random"),
@@ -1003,7 +1003,7 @@ local function setRandom(args)
     )
     if input then
         item.randomRoute = input[1] or false
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -1014,7 +1014,7 @@ local function setRandom(args)
 end
 
 local function setUnlimited(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local input =
         lib.inputDialog(
         locale("actions.item.unlimited"),
@@ -1029,7 +1029,7 @@ local function setUnlimited(args)
     )
     if input then
         item.unlimited = input[1] or false
-        Farms[args.farmKey].config.items[args.itemKey] = item
+        Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     end
     args.callback(
         {
@@ -1040,7 +1040,7 @@ local function setUnlimited(args)
 end
 
 local function setAnimation(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     if Config.UseEmoteMenu then
         local input =
             lib.inputDialog(
@@ -1057,7 +1057,7 @@ local function setAnimation(args)
         )
         if input then
             item.animation = input[1]
-            Farms[args.farmKey].config.items[args.itemKey] = item
+            Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
         end
     else
         local input =
@@ -1142,7 +1142,7 @@ local function setAnimation(args)
             _anim['y'] = input[9]
             _anim['z'] = input[10]
             item.animation = _anim
-            Farms[args.farmKey].config.items[args.itemKey] = item
+            Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
         end
     end
     args.callback(
@@ -1190,7 +1190,7 @@ local function pointMenu(args)
                 description = locale("actions.description_delete", locale("actions.point")),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ColorScheme.danger,
+                iconColor = Defaults.ColorScheme.danger,
                 onSelect = deletePoint,
                 args = {
                     farmKey = args.farmKey,
@@ -1208,7 +1208,7 @@ end
 
 local function addPoints(args)
     local keepLoop = true
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     while keepLoop do
         Wait(0)
@@ -1224,7 +1224,7 @@ local function addPoints(args)
             )
         end
     end
-    Farms[args.farmKey].config.items[args.itemKey] = item
+    Defaults.Farms[args.farmKey].config.items[args.itemKey] = item
     args.callback(
         {
             farmKey = args.farmKey,
@@ -1253,7 +1253,7 @@ function listPoints(args)
             }
         }
     }
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     for k, v in pairs(item.points) do
         ctx.options[#ctx.options + 1] = {
@@ -1276,7 +1276,7 @@ function listPoints(args)
 end
 
 local function addExtraItem(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local extraItems = item["extraItems"] or {}
     local input = selItemInput(args, true)
@@ -1287,7 +1287,7 @@ local function addExtraItem(args)
         }
         item["extraItems"] = extraItems
         farm.config.items[args.itemKey] = item
-        Farms[args.farmKey] = farm
+        Defaults.Farms[args.farmKey] = farm
     else
         listExtraItems(args)
         return
@@ -1302,7 +1302,7 @@ local function addExtraItem(args)
 end
 
 local function setMinMaxExtraItem(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local extraItems = item["extraItems"] or {}
     local extraItem = extraItems[args.extraItemKey]
@@ -1324,7 +1324,7 @@ local function setMinMaxExtraItem(args)
         extraItems[args.extraItemKey].max = input[2] or 1
         item["extraItems"] = extraItems
         farm.config.items[args.itemKey] = item
-        Farms[args.farmKey] = farm
+        Defaults.Farms[args.farmKey] = farm
     end
     args.callback(
         {
@@ -1336,7 +1336,7 @@ local function setMinMaxExtraItem(args)
 end
 
 local function extraItemActionMenu(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local extraItem = item["extraItems"][args.extraItemKey]
     local ctx = {
@@ -1374,7 +1374,7 @@ local function extraItemActionMenu(args)
                 description = locale("actions.description_delete", locale("actions.item")),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ColorScheme.danger,
+                iconColor = Defaults.ColorScheme.danger,
                 onSelect = deleteExtraItem,
                 args = {
                     farmKey = args.farmKey,
@@ -1390,7 +1390,7 @@ local function extraItemActionMenu(args)
 end
 
 local function duplicateFarm(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     if not farm then return end
 
     -- Create a deep copy of the farm
@@ -1420,7 +1420,7 @@ local function duplicateFarm(args)
 end
 
 function listExtraItems(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local ctx = {
         id = "list_extra_items",
@@ -1460,7 +1460,7 @@ function listExtraItems(args)
 end
 
 local function configMenu(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
     local ctx = {
         id = "config_item",
@@ -1576,7 +1576,7 @@ local function configMenu(args)
                     item.randomRoute and locale("misc.yes") or locale("misc.no")
                 ),
                 icon = "shuffle",
-                iconColor = ifThen(item.randomRoute, ColorScheme.success, ColorScheme.danger),
+                iconColor = ifThen(item.randomRoute, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
                 iconAnimation = Config.IconAnimation,
                 onSelect = setRandom,
                 args = {
@@ -1593,7 +1593,7 @@ local function configMenu(args)
                 ),
                 icon = "infinity",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ifThen(item.unlimited, ColorScheme.success, ColorScheme.danger),
+                iconColor = ifThen(item.unlimited, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
                 onSelect = setUnlimited,
                 args = {
                     farmKey = args.farmKey,
@@ -1620,7 +1620,7 @@ local function configMenu(args)
 end
 
 local function itemActionMenu(args)
-    local item = Farms[args.farmKey].config.items[args.itemKey]
+    local item = Defaults.Farms[args.farmKey].config.items[args.itemKey]
     local ctx = {
         id = "action_item",
         title = item["customName"] and item["customName"] ~= "" and item["customName"] or Items[args.itemKey].label,
@@ -1690,7 +1690,7 @@ local function itemActionMenu(args)
             },
             {
                 title = locale("actions.item.afk"),
-                description = locale("actions.farm.description_afk", ifThen(Farms[args.farmKey].config.afk, locale("misc.actived"), locale("misc.disabled"))),
+                description = locale("actions.farm.description_afk", ifThen(Defaults.Farms[args.farmKey].config.afk, locale("misc.actived"), locale("misc.disabled"))),
                 icon = "person-walking",
                 iconAnimation = Config.IconAnimation,
                 onSelect = changeFarmAFK,
@@ -1717,7 +1717,7 @@ local function itemActionMenu(args)
                 description = locale("actions.item.description_debug_points",
                     ifThen(item.debugPoints, locale("misc.yes"), locale("misc.no"))),
                 icon = ifThen(item.debugPoints, "toggle-on", "toggle-off"),
-                iconColor = ifThen(item.debugPoints, ColorScheme.success, ColorScheme.danger),
+                iconColor = ifThen(item.debugPoints, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
                 iconAnimation = Config.IconAnimation,
                 onSelect = toggleDebugPoints,
                 args = {
@@ -1731,7 +1731,7 @@ local function itemActionMenu(args)
                 description = locale("actions.description_delete", locale("actions.item")),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ColorScheme.danger,
+                iconColor = Defaults.ColorScheme.danger,
                 onSelect = deleteItem,
                 args = {
                     farmKey = args.farmKey,
@@ -1748,7 +1748,7 @@ local function itemActionMenu(args)
 end
 
 function ListItems(args)
-    local farm = Farms[args.farmKey]
+    local farm = Defaults.Farms[args.farmKey]
     local ctx = {
         id = "items_farm",
         title = locale("menus.items"),
@@ -1789,7 +1789,7 @@ function ListItems(args)
                 description = locale("error.invalid_item_description"),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ColorScheme.danger,
+                iconColor = Defaults.ColorScheme.danger,
                 onSelect = deleteItem,
                 args = {
                     farmKey = args.farmKey,
@@ -1805,12 +1805,12 @@ function ListItems(args)
 end
 
 local function saveFarm(args)
-    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Farms[args.farmKey], args.farmKey)
+    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Defaults.Farms[args.farmKey], args.farmKey)
     args.callback(args.farmKey)
 end
 
 local function actionMenu(key)
-    local farm = Farms[key]
+    local farm = Defaults.Farms[key]
     local groupName = locale("creator.no_group")
     local grade = "0"
     local groups = Utils.getBaseGroups(true)
@@ -1884,7 +1884,7 @@ local function actionMenu(key)
                 title = locale("actions.farm.nostart"),
                 icon = "bolt",
                 iconAnimation = Config.IconAnimation,
-                iconColor = ifThen(farm.config.nostart, ColorScheme.success, ColorScheme.danger),
+                iconColor = ifThen(farm.config.nostart, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
                 onSelect = changeFarmStart,
                 description = startDescription,
                 args = {
@@ -1998,7 +1998,7 @@ local function actionMenu(key)
         description = locale("actions.description_delete", locale("actions.farm")),
         icon = "trash",
         iconAnimation = Config.IconAnimation,
-        iconColor = ColorScheme.danger,
+        iconColor = Defaults.ColorScheme.danger,
         onSelect = deleteFarm,
         args = {
             farmKey = key,
@@ -2016,10 +2016,10 @@ function ListFarm()
         id = "list_farms",
         menu = "menu_farm",
         title = locale("menus.farms"),
-        description = locale("actions.farm.description_title", #Farms),
+        description = locale("actions.farm.description_title", #Defaults.Farms),
         options = {}
     }
-    for k, v in pairs(Farms) do
+    for k, v in pairs(Defaults.Farms) do
         local groupName = locale("creator.no_group")
         if v.group["name"] then
             groupName = Utils.getGroupsLabel(v.group["name"])
@@ -2048,7 +2048,7 @@ local function manageFarms()
         id = "menu_farm",
         menu = "menu_gerencial",
         title = locale("actions.farm.title"),
-        description = locale("actions.farm.description_title", #Farms),
+        description = locale("actions.farm.description_title", #Defaults.Farms),
         options = {
             {
                 title = locale("actions.farm.create"),
@@ -2082,15 +2082,15 @@ local function manageFarms()
     lib.showContext(ctx.id)
 end
 
-if GetResourceState("mri_Qbox") == "started" then
-    exports["mri_Qbox"]:AddManageMenu(
+if GetResourceState("mri_Qmenu") == "started" then
+    exports["mri_Qmenu"]:AddManageMenu(
         {
             title = locale("creator.title"),
             description = locale("creator.description_title"),
             icon = "toolbox",
             iconAnimation = "fade",
-            arrow = true,
-            onSelectFunction = manageFarms
+            onSelectFunction = manageFarms,
+            category = "manage"
         }
     )
 else

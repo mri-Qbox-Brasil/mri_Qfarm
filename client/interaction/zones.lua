@@ -2,10 +2,9 @@ local zones = {}
 
 local function add(item)
     if Config.Debug then
-        print(string.format("Adding element: %s", name))
+        print(string.format("Adding element: %s", item.name))
     end
     zones[item.name] = lib.zones.box(item.data)
-
 end
 
 local function remove(name)

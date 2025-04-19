@@ -1,23 +1,23 @@
 local blips = {}
 
-local function add(data)
-    local b = AddBlipForCoord(data.coords.x, data.coords.y, data.coords.z)
-    SetBlipSprite(b, data.sprite)
-    SetBlipColour(b, data.color)
-    SetBlipScale(b, data.scale)
-    SetBlipAsShortRange(b, data.shortRange)
-    SetBlipRoute(b, data.route)
+local function add(item)
+    local b = AddBlipForCoord(item.data.coords.x, item.data.coords.y, item.data.coords.z)
+    SetBlipSprite(b, item.data.sprite)
+    SetBlipColour(b, item.data.color)
+    SetBlipScale(b, item.data.scale)
+    SetBlipAsShortRange(b, item.data.shortRange)
+    SetBlipRoute(b, item.data.route)
     BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(data.text)
+    AddTextComponentString(item.data.text)
     EndTextCommandSetBlipName(b)
-    blips[b] = data
+    blips[item.name] = {id = b, data = item.data}
     return b
 end
 
-local function remove(b)
-    if b and DoesBlipExist(b) then
-        RemoveBlip(b)
-        blips[b] = nil
+local function remove(name)
+    if DoesBlipExist(blips[name].id) then
+        RemoveBlip(blips[name].id)
+        blips[name] = nil
     end
 end
 

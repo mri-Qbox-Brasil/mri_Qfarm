@@ -1,6 +1,10 @@
+local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 local inventory = exports.ox_inventory
-local items = Inventory:Items()
+local items = inventory:Items()
 local Defaults = require("client/defaults")
+
+local PlayerJob = {}
+local PlayerGang = {}
 
 local function itemAdd(source, item, amount)
     if (amount > 0) then
@@ -27,6 +31,14 @@ function sendNotification(data)
         lib.notify(data["source"], notifyData)
     else
         lib.notify(notifyData)
+    end
+end
+
+local function dispatchEvents(source, response)
+    Wait(2000)
+    TriggerClientEvent("mri_Qfarm:client:LoadFarms", -1)
+    if response then
+        sendNotification({source = source, description = response.description, type = response.type})
     end
 end
 
@@ -99,7 +111,7 @@ end
 
 local function getLocationFormatted(location, key)
     if key then
-        return string.format("[%02d] - %s", key, Utils.GetLocation(location))
+        return string.format("[%02d] - %s", key, getLocation(location))
     else
         return getLocation(location)
     end
@@ -205,7 +217,7 @@ end
 
 local function getMetadataFromFarm(key)
     local data = {}
-    local items = Farms[key].config.items
+    local items = Defaults.Farms[key].config.items
     for k, v in pairs(items) do
         if Items[k] then
             data[#data + 1] = {
@@ -246,22 +258,39 @@ local function roleCheck(PlayerGroupData, requiredGroup, requiredGrade)
     end
 end
 
+local function loadPlayerData(playerData)
+    PlayerJob = playerData.job
+    PlayerGang = playerData.gang
+end
+
+local function checkPerms(farm)
+    return isPublic(farm) or roleCheck(PlayerJob, farm.group.name, farm.group.grade) or
+        roleCheck(PlayerGang, farm.group.name, farm.group.grade)
+end
+
 return {
     items = items,
     inventory = inventory,
+    playerJob = PlayerJob,
+    playerGang = PlayerGang,
     isPlayerAuthorized = isPlayerAuthorized,
     itemAdd = itemAdd,
     findById = findById,
     sendNotification = sendNotification,
+    dispatchEvents = dispatchEvents,
+    getPedCoords = getPedCoords,
     getBaseGroups = getBaseGroups,
     getGroupsLabel = getGroupsLabel,
     getBaseItems = getBaseItems,
     getItemMetadata = getItemMetadata,
     getMetadataFromFarm = getMetadataFromFarm,
-    -- Daqui pra frente só o client vai conseguir usar, cuidado!
     getLocation = getLocation,
     getLocationFormatted = getLocationFormatted,
     getDefaultAnim = getDefaultAnim,
     isPublic = isPublic,
-    roleCheck = roleCheck
+    roleCheck = roleCheck,
+    tpToLoc = tpToLoc,
+    confirmationDialog = confirmationDialog,
+    loadPlayerData = loadPlayerData,
+    checkPerms = checkPerms
 }

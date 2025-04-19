@@ -1,16 +1,12 @@
-local Farms = GlobalState.Farms or {}
-local ImageURL = "https://cfx-nui-ox_inventory/web/images"
-
 local Utils = lib.require("shared/utils")
 local Defaults = require("client/defaults")
 local Blips = lib.require("client/interaction/blips")
+local Markers = lib.require("client/interaction/markers")
 local Text = lib.require("client/interaction/texts")
 local Targets = lib.require("client/interaction/targets")
 local Zones = lib.require("client/interaction/zones")
-
-local PlayerData = nil
-local PlayerJob = nil
-local PlayerGang = nil
+local Route = lib.require("client/modules/route")
+local NoStart = lib.require("client/modules/no_start")
 
 local tasking = false
 local currentPoint = 0
@@ -26,25 +22,6 @@ local playerFarm = nil
 local farmElements = {}
 local farmPointElements = {}
 local defaultBlipColor = 5
-
-local function stopFarm()
-    startFarm = false
-    tasking = false
-
-    Utils.sendNotification(
-        {
-            type = "error",
-            description = locale("text.cancel_shift")
-        }
-    )
-
-    Targets.clear(farmPointElements)
-    Blips.clear()
-    currentPoint = 0
-    playerFarm = nil
-    farmingItemName = nil
-    farmingItem = nil
-end
 
 local function farmThread()
     CreateThread(
@@ -250,8 +227,8 @@ local function openPoint(point, itemName, item, farm)
 end
 
 local function cleanupDebugBlips()
-    if Farms then
-        for _, farm in pairs(Farms) do
+    if Defaults.Farms then
+        for _, farm in pairs(Defaults.Farms) do
             if farm.config and farm.config.items then
                 for _, item in pairs(farm.config.items) do
                     -- Clean up blips
@@ -464,166 +441,24 @@ local function startAutoFarm(args)
     loadFarmPoints(itemName, farmItem, playerFarm)
 end
 
-local function startFarming(args)
-    playerFarm = args.farm
-    local itemName = args.itemName
-    local farmItem = playerFarm.config.items[itemName]
-    loadFarmPoints(itemName, farmItem)
-    startFarm = true
-    farmingItemName = itemName
-    farmingItem = farmItem
-    local amount = -1
-    if (not farmItem.unlimited) then
-        amount = #(farmItem.points)
-    end
-
-    currentSequence = 0
-    Utils.sendNotification(
-        {
-            description = locale("text.start_shift", farmItem["customName"] or Utils.items[itemName].label),
-            type = "info"
-        }
-    )
-    local pickedFarms = 0
-    farmThread()
-    while startFarm do
-        if tasking then
-            Wait(5000)
-        else
-            if amount >= 0 and pickedFarms >= amount then
-                startFarm = false
-                Utils.sendNotification(
-                    {
-                        description = locale("text.end_shift"),
-                        type = "info"
-                    }
-                )
-            else
-                nextTask(farmItem)
-                pickedFarms = pickedFarms + 1
-            end
-        end
-        Wait(5)
-    end
-end
-
-local function showFarmMenu(farm)
-    local ctx = {
-        id = "farm_menu",
-        title = farm.name,
-        icon = "fa-solid fa-briefcase",
-        options = {}
-    }
-    for itemName, v in pairs(farm.config.items) do
-        local item = Utils.items[itemName]
-        if not (item == nil) then
-            ctx.options[#ctx.options + 1] = {
-                title = v["customName"] and v["customName"] ~= "" and v["customName"] or item.label,
-                description = item.description,
-                icon = string.format("%s/%s.png", ImageURL, item.name),
-                image = string.format("%s/%s.png", ImageURL, item.name),
-                metadata = Utils.getItemMetadata(item, true),
-                disabled = startFarm,
-                onSelect = startFarming,
-                args = {
-                    farm = farm,
-                    itemName = itemName
-                }
-            }
-        end
-    end
-
-    if (startFarm) then
-        local item = Utils.items[farmingItemName]
-        ctx.options[#ctx.options + 1] = {
-            title = locale("menus.cancel_farm"),
-            icon = "fa-solid fa-ban",
-            description = item.label,
-            onSelect = stopFarm,
-            args = {
-                farm = farm,
-                itemName = farmingItemName
-            }
-        }
-    end
-    lib.registerContext(ctx)
-    lib.showContext(ctx.id)
-end
-
-local function checkAndOpen(farm, isPublic)
-    if
-        isPublic or roleCheck(PlayerJob, farm.group.name, farm.group.grade) or
-            roleCheck(PlayerGang, farm.group.name, farm.group.grade)
-     then
-        showFarmMenu(farm)
-    end
-end
-
 local function loadFarms()
     Targets.clear()
-    Bilps.clear()
+    Blips.clear()
     Markers.clear()
     Zones.clear()
-    for k, v in pairs(Farms) do
-        local isPublic = Utils.isPublic(v)
-        if
-            isPublic or Utils.roleCheck(PlayerJob, v.group.name, v.group.grade) or
-                Utils.roleCheck(PlayerGang, v.group.name, v.group.grade)
-         then
-            if v.config.start["location"] then
-                local start = v.config.start
-                start.location = vector3(start.location.x, start.location.y, start.location.z)
-                local zoneName = ("farm-%s"):format("start" .. k)
-                if Config.UseTarget then
-                    Targets.add(
-                        {
-                            name = zoneName,
-                            data = {
-                                coords = start.location,
-                                name = zoneName,
-                                options = {
-                                    icon = "fa-solid fa-screwdriver-wrench",
-                                    label = string.format("Abrir %s", v.name),
-                                    onSelect = function()
-                                        checkAndOpen(v, isPublic)
-                                    end
-                                }
-                            }
-                        }
-                    )
-                else
-                    Zones.add(
-                        {
-                            name = zoneName,
-                            data = {
-                                coords = start.location,
-                                size = vector3(start.length, start.width, 1.0),
-                                debug = Config.Debug,
-                                onEnter = function()
-                                    checkAndOpen(v, isPublic)
-                                end
-                            }
-                        }
-                    )
-                end
-            end
-
-            if v.config.nostart then
-                local farm = v
-
-                for itemName, _ in pairs(farm.config.items) do
-                    local item = Utils.items[itemName]
-                    if not (item == nil) then
-                        startAutoFarm(
-                            {
-                                farm = farm,
-                                itemName = itemName
-                            }
-                        )
-                    end
-                end
-            end
+    Route.clear()
+    NoStart.clear()
+    for k, v in pairs(Defaults.Farms) do
+        if v.config.nostart then
+            NoStart.add(v)
+        elseif v.config.start["location"] then
+            Route.add(v)
         end
+    end
+    Route.loadFarms()
+    NoStart.loadFarms()
+    if Config.Debug then
+        print("^2[mri_Qfarm] Farms carregadas com sucesso^7")
     end
 end
 
@@ -631,9 +466,7 @@ AddEventHandler(
     "onResourceStart",
     function(resourceName)
         if resourceName == GetCurrentResourceName() then
-            PlayerData = QBX.PlayerData
-            PlayerJob = PlayerData.job
-            PlayerGang = PlayerData.gang
+            Utils.loadPlayerData(QBX.PlayerData)
         end
     end
 )
@@ -642,7 +475,10 @@ AddEventHandler(
     "onResourceStop",
     function(resourceName)
         if resourceName == GetCurrentResourceName() then
-            cleanupDebugBlips()
+            Targets.clear()
+            Blips.clear()
+            Markers.clear()
+            Zones.clear()
         end
     end
 )
@@ -650,9 +486,7 @@ AddEventHandler(
 RegisterNetEvent(
     "QBCore:Client:OnPlayerLoaded",
     function()
-        PlayerData = QBX.PlayerData
-        PlayerJob = PlayerData.job
-        PlayerGang = PlayerData.gang
+        Utils.loadPlayerData(QBX.PlayerData)
         loadFarms()
     end
 )
@@ -661,10 +495,10 @@ RegisterNetEvent(
     "QBCore:Client:OnPlayerUnload",
     function()
         local group = nil
-        if PlayerGang and PlayerGang.name then
-            group = PlayerGang.name
-        elseif (PlayerJob and PlayerJob.name) then
-            group = PlayerJob.name
+        if Utils.playerGang and Utils.playerGang.name then
+            group = Utils.playerGang.name
+        elseif (Utils.playerJob and Utils.playerJob.name) then
+            group = Utils.playerJob.name
         end
 
         if (group and farmingItemName) then
@@ -677,7 +511,7 @@ RegisterNetEvent(
 RegisterNetEvent(
     "QBCore:Client:OnJobUpdate",
     function(JobInfo)
-        PlayerJob = JobInfo
+        Utils.playerJob = JobInfo
         loadFarms()
     end
 )
@@ -685,7 +519,7 @@ RegisterNetEvent(
 RegisterNetEvent(
     "QBCore:Client:OnGangUpdate",
     function(GangInfo)
-        PlayerGang = GangInfo
+        Utils.playerGang = GangInfo
         loadFarms()
     end
 )
@@ -693,7 +527,7 @@ RegisterNetEvent(
 RegisterNetEvent(
     "mri_Qfarm:client:LoadFarms",
     function()
-        Farms = GlobalState.Farms or {}
+        Defaults.Farms = GlobalState.Farms or {}
         loadFarms()
     end
 )

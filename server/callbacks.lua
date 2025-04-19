@@ -1,14 +1,6 @@
 local Utils = require("shared/utils")
 local Storage = require("server/storage")
 
-local function dispatchEvents(source, response)
-    Wait(2000)
-    TriggerClientEvent("mri_Qfarm:client:LoadFarms", -1)
-    if response then
-        Utils.sendNotification({source = source, description = response.description, type = response.type})
-    end
-end
-
 local function createFarm(source, farm)
     if not IsPlayerAceAllowed(source, Config.AuthorizationManager) then
         return {type = "error", description = locale("error.not_allowed")}
@@ -154,7 +146,7 @@ lib.callback.register(
         else
             response = createFarm(source, farm)
         end
-        dispatchEvents(source, response)
+        Utils.dispatchEvents(source, response)
         return true
     end
 )
@@ -163,7 +155,7 @@ lib.callback.register(
     "mri_Qfarm:server:DeleteFarm",
     function(source, farmId)
         local response = deleteFarm(source, farmId)
-        dispatchEvents(source, response)
+        Utils.dispatchEvents(source, response)
         return true
     end
 )
@@ -172,7 +164,7 @@ lib.callback.register(
     "mri_Qfarm:server:DuplicateFarm",
     function(source, farmId)
         local response = duplicateFarm(source, farmId)
-        dispatchEvents(source, response)
+        Utils.dispatchEvents(source, response)
         return true
     end
 )

@@ -1,4 +1,5 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
+local Utils = require ("shared/utils")
 local Storage = require ("server/storage")
 local Farms = GlobalState.Farms or {}
 
@@ -157,8 +158,8 @@ AddEventHandler(
     function(resource)
         Wait(200)
         if resource == GetCurrentResourceName() then
-            Storage.loadFarms()
-            dispatchEvents(source)
+            Storage:loadFarms()
+            Utils.dispatchEvents(source)
         end
     end
 )
