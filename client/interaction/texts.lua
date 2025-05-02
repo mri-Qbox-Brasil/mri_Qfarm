@@ -1,22 +1,19 @@
-local texts = {}
+local Utils = lib.require("shared/utils")
+local elements = {}
 
 local function add(item)
-    if Config.Debug then
-        print(string.format("Adding element: %s", item.name))
-    end
-    texts[item.name] = item.data
+    Utils.debug("Adding text", item.name)
+    elements[item.name] = item.data
 end
 
 local function remove(name)
-    if Config.Debug then
-        print(string.format("Removing element: %s", name))
-    end
-    texts[name] = nil
+    Utils.debug("Removing text", name)
+    elements[name] = nil
 end
 
 local function clear()
-    if #texts > 0 then
-        for k, v in pairs(texts) do
+    if #elements > 0 then
+        for k, v in pairs(elements) do
             remove(k)
         end
     end
@@ -33,7 +30,7 @@ end
 
 CreateThread(function()
     while true do
-        for k, v in pairs(texts) do
+        for k, v in pairs(elements) do
             show(v.text, v.delay, v.type, v.playSound)
         end
         Wait(0)

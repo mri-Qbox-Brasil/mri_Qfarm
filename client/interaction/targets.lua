@@ -1,25 +1,30 @@
-local targets = {}
+local Utils = lib.require("shared/utils")
 local target = exports.ox_target
+local elements = {}
 
 local function add(item)
-    if Config.Debug then
-        print(string.format("Adding element: %s", item.name))
-    end
-    target:addSphereZone(item.data)
-    targets[item.name] = item.data
+    Utils.debug("Adding target", item.name)
+    item.data["id"] = target:addSphereZone(item.data)
+    elements[item.name] = item.data
 end
 
 local function remove(name)
-    if Config.Debug then
-        print(string.format("Removing element: %s", name))
+    Utils.debug("Removing target", name)
+    target:removeZone(elements[name].id)
+    elements[name] = nil
+end
+
+local function removeGroup(group)
+    for k, v in pairs(elements) do
+        if string.find(k, group, 1, true) then
+            remove(k)
+        end
     end
-    target:removeZone(targets[name])
-    targets[name] = nil
 end
 
 local function clear(tableObj)
-    if #targets > 0 then
-        for k, v in pairs(targets) do
+    if #elements > 0 then
+        for k, v in pairs(elements) do
             remove(k)
         end
     end
@@ -28,5 +33,6 @@ end
 return {
     add = add,
     remove = remove,
+    removeGroup = removeGroup,
     clear = clear
 }

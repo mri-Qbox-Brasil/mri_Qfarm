@@ -6,6 +6,12 @@ local Defaults = require("client/defaults")
 local PlayerJob = {}
 local PlayerGang = {}
 
+local function debug(msg1, msg2)
+    if Config.Debug then
+        print(string.format("[%s] %s: %s", GetCurrentResourceName(), msg1, msg2))
+    end
+end
+
 local function itemAdd(source, item, amount)
     if (amount > 0) then
         inventory:AddItem(source, item, amount)
@@ -268,9 +274,47 @@ local function checkPerms(farm)
         roleCheck(PlayerGang, farm.group.name, farm.group.grade)
 end
 
+local function pickAnim(anim)
+    if Config.UseEmoteMenu then
+        ExecuteCommand(string.format("e %s", anim))
+    else
+        lib.requestAnimDict(anim.dict, 5000)
+        TaskPlayAnim(
+            cache.ped,
+            anim.dict,
+            anim.anim,
+            anim.inSpeed,
+            anim.outSpeed,
+            anim.duration,
+            anim.flag,
+            anim.rate,
+            anim.x,
+            anim.y,
+            anim.z
+        )
+    end
+end
+
+local function actionProcess(description, duration)
+    return lib.progressBar(
+        {
+            duration = duration,
+            label = description,
+            useWhileDead = false,
+            canCancel = true,
+            disable = {
+                car = true,
+                move = true,
+                combat = true
+            }
+        }
+    )
+end
+
 return {
     items = items,
     inventory = inventory,
+    debug = debug,
     playerJob = PlayerJob,
     playerGang = PlayerGang,
     isPlayerAuthorized = isPlayerAuthorized,
@@ -280,6 +324,7 @@ return {
     dispatchEvents = dispatchEvents,
     getPedCoords = getPedCoords,
     getBaseGroups = getBaseGroups,
+    getGroupGrades = getGroupGrades,
     getGroupsLabel = getGroupsLabel,
     getBaseItems = getBaseItems,
     getItemMetadata = getItemMetadata,
@@ -292,5 +337,7 @@ return {
     tpToLoc = tpToLoc,
     confirmationDialog = confirmationDialog,
     loadPlayerData = loadPlayerData,
-    checkPerms = checkPerms
+    checkPerms = checkPerms,
+    pickAnim = pickAnim,
+    actionProcess = actionProcess
 }

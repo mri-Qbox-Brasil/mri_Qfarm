@@ -1,22 +1,28 @@
-local markers = {}
+local Utils = lib.require("shared/utils")
+local elements = {}
 
 local function add(item)
-    if Config.Debug then
-        print(string.format("Adding element: %s", item.name))
-    end
-    markers[item.name] = item.data
+    Utils.debug("Adding marker", item.name)
+    elements[item.name] = item.data
 end
 
 local function remove(name)
-    if Config.Debug then
-        print(string.format("Removing element: %s", name))
+    Utils.debug("Removing marker", name)
+    elements[name] = nil
+end
+
+local function removeGroup(group)
+    for k, v in pairs(elements) do
+
+        if string.find(k, group, 1, true) then
+            remove(k)
+        end
     end
-    markers[name] = nil
 end
 
 local function clear()
-    if #markers > 0 then
-        for k, v in pairs(markers) do
+    if #elements > 0 then
+        for k, v in pairs(elements) do
             remove(k)
         end
     end
@@ -25,7 +31,8 @@ end
 CreateThread(
     function()
         while true do
-            for k, v in pairs(markers) do
+            -- print(string.format("Markers: %s", #elements))
+            for k, v in pairs(elements) do
                 local playerLoc = GetEntityCoords(cache.ped)
                 if
                     GetDistanceBetweenCoords(
@@ -74,5 +81,6 @@ CreateThread(
 return {
     add = add,
     remove = remove,
+    removeGroup = removeGroup,
     clear = clear
 }
