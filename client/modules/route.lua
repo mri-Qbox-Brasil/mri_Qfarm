@@ -1,5 +1,7 @@
+-- Farm com rotas, iniciando o turno
 local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
+local Config = require("shared/config")
 local Utils = lib.require("shared/utils")
 local Defaults = require("client/defaults")
 local Blips = lib.require("client/interaction/blips")
@@ -7,6 +9,7 @@ local Markers = lib.require("client/interaction/markers")
 local Texts = lib.require("client/interaction/texts")
 local Targets = lib.require("client/interaction/targets")
 local Zones = lib.require("client/interaction/zones")
+local InteractionHandler = lib.require("client/interaction/handler")
 
 local Farms = {}
 
@@ -139,6 +142,7 @@ local function checkInteraction(farmItem)
 end
 
 local function openPoint(farmItem)
+    Utils.debug("openPoint", farmItem)
     lib.hideTextUI()
     local duration = farmItem["collectTime"] or Defaults.CollectTime
     local animation = nil
@@ -179,6 +183,7 @@ local function openPoint(farmItem)
 end
 
 function clearPoint(name)
+    Utils.debug("clearPoint", name)
     if name == nil then
         return
     end
@@ -187,11 +192,8 @@ function clearPoint(name)
     if Config.ShowMarker then
         Markers.remove(name)
     end
-    if Config.UseTarget then
-        Targets.remove(name)
-    else
-        Zones.remove(name)
-    end
+
+    InteractionHandler.remove(name)
 end
 
 local function nextTask(farmItem)
@@ -223,49 +225,48 @@ local function nextTask(farmItem)
         marker.coords = vec3(farmPoint.x, farmPoint.y, farmPoint.z)
         Markers.add({name = zoneName, data = marker})
     end
-    if Config.UseTarget then
-        Targets.add(
-            {
+    InteractionHandler.add(
+        {
+            name = zoneName,
+            data = {
                 name = zoneName,
-                data = {
-                    coords = vec3(farmPoint.x, farmPoint.y, farmPoint.z),
-                    name = zoneName,
-                    options = {
-                        icon = "fa-solid fa-screwdriver-wrench",
-                        label = locale("target.label", farmItem.label),
-                        canInteract = function()
-                            return checkInteraction(farmItem)
-                        end,
-                        onSelect = function()
-                            openPoint(farmItem)
-                            clearPoint(zoneName)
-                        end
-                    }
-                }
-            }
-        )
-    else
-        Zones.add(
-            {
-                name = zoneName,
-                data = {
-                    coords = vec3(farmPoint.x, farmPoint.y, farmPoint.z),
-                    size = vector3(1.0, 1.0, 1.0),
-                    debug = Config.Debug,
-                    onEnter = function()
-                        lib.showTextUI(locale("task.start_task"))
-                        if IsControlJustReleased(0, 38) and checkInteraction(farmItem) then
-                            openPoint(farmItem)
-                            clearPoint(zoneName)
-                        end
+                debug = Config.Debug,
+                coords = farmPoint,
+                color = {
+                    r = 255,
+                    g = 255,
+                    b = 0,
+                    a = 255
+                },
+                size = vector3(Config.FarmBoxWidth, Config.FarmBoxLength, Config.FarmBoxHeight),
+                options = {
+                    icon = "fa-solid fa-screwdriver-wrench",
+                    label = locale("target.label", farmItem.label),
+                    canInteract = function()
+                        return checkInteraction(farmItem)
+                    end,
+                    onSelect = function()
+                        openPoint(farmItem)
+                        clearPoint(zoneName)
                     end
-                }
+                },
+                inside = function()
+                    lib.showTextUI("[E] " .. locale("target.label", farmItem.label))
+                    if IsControlJustReleased(0, 38) and checkInteraction(farmItem) then
+                        openPoint(farmItem)
+                        clearPoint(zoneName)
+                    end
+                end,
+                onExit = function()
+                    lib.hideTextUI()
+                end
             }
-        )
-    end
+        }
+    )
 end
 
 local function stopFarming(isCancel)
+    Utils.debug("stopFarming", isCancel)
     isTasking = false
     isFarming = false
     amountCollected = 0
@@ -316,6 +317,7 @@ local function farmThread()
 end
 
 local function startFarming(args)
+    Utils.debug("startFarming", args)
     isFarming = true
     playerFarm = args.farm
     farmingItemName = args.itemName
@@ -411,42 +413,44 @@ local function showFarmMenu(farm)
 end
 
 local function loadFarms()
+    Utils.debug("loadFarms")
     for k, v in pairs(Farms) do
         local start = v.config.start
         start.location = vector3(start.location.x, start.location.y, start.location.z)
         local zoneName = string.format("farm-start-%s", k)
-        if Config.UseTarget then
-            Targets.add(
-                {
+        InteractionHandler.add(
+            {
+                name = zoneName,
+                data = {
                     name = zoneName,
-                    data = {
-                        coords = start.location,
-                        name = zoneName,
-                        options = {
-                            icon = "fa-solid fa-screwdriver-wrench",
-                            label = locale("text.open_farm", v.name),
-                            onSelect = function()
-                                showFarmMenu(v)
-                            end
-                        }
-                    }
-                }
-            )
-        else
-            Zones.add(
-                {
-                    name = zoneName,
-                    data = {
-                        coords = start.location,
-                        size = vector3(start.length, start.width, 1.0),
-                        debug = Config.Debug,
-                        onEnter = function()
+                    debug = Config.Debug,
+                    coords = start.location,
+                    color = {
+                        r = 255,
+                        g = 255,
+                        b = 0,
+                        a = 255
+                    },
+                    size = vector3(Config.FarmBoxWidth, Config.FarmBoxLength, Config.FarmBoxHeight),
+                    options = {
+                        icon = "fa-solid fa-screwdriver-wrench",
+                        label = locale("text.open_farm", v.name),
+                        onSelect = function()
                             showFarmMenu(v)
                         end
-                    }
+                    },
+                    inside = function()
+                        lib.showTextUI("[E] " .. locale("text.open_farm", v.name))
+                        if IsControlJustReleased(0, 38) then
+                            showFarmMenu(v)
+                        end
+                    end,
+                    onExit = function()
+                        lib.hideTextUI()
+                    end
                 }
-            )
-        end
+            }
+        )
     end
 end
 

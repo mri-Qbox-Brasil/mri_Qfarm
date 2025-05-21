@@ -1,5 +1,7 @@
+-- Farm com rotas, sem iniciar o turno
 local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
+local Config = require("shared/config")
 local Utils = lib.require("shared/utils")
 local Defaults = require("client/defaults")
 local Blips = lib.require("client/interaction/blips")
@@ -16,21 +18,15 @@ local function add(item)
         isPublic or Utils.roleCheck(PlayerJob, item.group.name, item.group.grade) or
             Utils.roleCheck(PlayerGang, item.group.name, item.group.grade)
      then
-        if Config.Debug then
-            print(string.format("Adding element: %s", item.name))
-        end
+        Utils.debug(string.format("Adding element: %s", item.name))
         Farms[item.name] = item
     else
-        if Config.Debug then
-            print(string.format("Skipping element: %s", item.name))
-        end
+        Utils.debug(string.format("Skipping element: %s", item.name))
     end
 end
 
 local function remove(name)
-    if Config.Debug then
-        print(string.format("Removing element: %s", name))
-    end
+    Utils.debug(string.format("Removing element: %s", name))
     Farms[name] = nil
 end
 
@@ -61,5 +57,5 @@ end
 return {
     add = add,
     clear = clear,
-    loadFarms = loadFarms,
+    loadFarms = loadFarms
 }

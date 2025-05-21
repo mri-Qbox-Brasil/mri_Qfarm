@@ -1,3 +1,4 @@
+local Config = require("shared/config")
 local Utils = lib.require("shared/utils")
 local Defaults = require("client/defaults")
 local ImageURL = "https://cfx-nui-ox_inventory/web/images"
@@ -29,7 +30,7 @@ local newItem = {
     randomRoute = false,
     unlimited = false,
     points = {},
-    animation = Utils.getDefaultAnim(Config.UseEmoteMenu),
+    animation = Utils.getDefaultAnim(),
     collectTime = DefaultCollectTime,
     collectItem = {
         name = nil,
@@ -155,9 +156,7 @@ local function changeFarmLocation(args)
     end
     if location then
         Defaults.Farms[args.farmKey].config.start = {
-            location = location,
-            width = Config.FarmBoxWidth,
-            length = Config.FarmBoxLength
+            location = location
         }
         lib.notify(
             {

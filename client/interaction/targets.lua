@@ -1,16 +1,29 @@
 local Utils = lib.require("shared/utils")
-local target = exports.ox_target
 local elements = {}
 
 local function add(item)
     Utils.debug("Adding target", item.name)
-    item.data["id"] = target:addSphereZone(item.data)
+    if elements[item.name] then
+        Utils.debug("Target already exists, skipping", item.name)
+        return
+    end
+    if GetResourceState("ox_target") == "started" then
+        item.data["id"] = exports.ox_target:addSphereZone(item.data)
+    else
+        Utils.debug(locale("error.interaction_not_found", "ox_target"))
+        return
+    end
     elements[item.name] = item.data
 end
 
 local function remove(name)
     Utils.debug("Removing target", name)
-    target:removeZone(elements[name].id)
+    if GetResourceState("ox_target") == "started" then
+        exports.ox_target:removeZone(elements[name].id)
+    else
+        Utils.debug(locale("error.interaction_not_found", "ox_target"))
+        return
+    end
     elements[name] = nil
 end
 

@@ -1,4 +1,6 @@
+local Config = require("shared/config")
 local Utils = require ("shared/utils")
+
 local SELECT_DATA = "SELECT * FROM mri_qfarm"
 local INSERT_DATA = "INSERT INTO mri_qfarm (farmName, farmConfig, farmGroup) VALUES (?, ?, ?)"
 local UPDATE_DATA = "UPDATE mri_qfarm SET farmName = ?, farmConfig = ?, farmGroup = ? WHERE farmId = ?"

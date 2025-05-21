@@ -1,4 +1,6 @@
 local ImageURL = "https://cfx-nui-ox_inventory/web/images"
+local Config = require("shared/config")
+
 local inventory = exports.ox_inventory
 local items = inventory:Items()
 local Defaults = require("client/defaults")
@@ -243,8 +245,8 @@ local function getMetadataFromFarm(key)
     return data
 end
 
-local function getDefaultAnim(useEmoteMenu)
-    if not useEmoteMenu then
+local function getDefaultAnim()
+    if not Config.UseEmoteMenu then
         return Defaults.Anim
     end
     return Defaults.AnimCmd

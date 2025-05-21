@@ -3,6 +3,7 @@ local elements = {}
 
 local function add(item)
     Utils.debug("Adding marker", item.name)
+    item.data.isInside = false
     elements[item.name] = item.data
 end
 
@@ -13,7 +14,6 @@ end
 
 local function removeGroup(group)
     for k, v in pairs(elements) do
-
         if string.find(k, group, 1, true) then
             remove(k)
         end
@@ -30,8 +30,8 @@ end
 
 CreateThread(
     function()
+        local timeToWait = 1000
         while true do
-            -- print(string.format("Markers: %s", #elements))
             for k, v in pairs(elements) do
                 local playerLoc = GetEntityCoords(cache.ped)
                 if
@@ -45,6 +45,7 @@ CreateThread(
                         true
                     ) <= 30
                  then
+                    timeToWait = 0
                     DrawMarker(
                         v.type,
                         v.coords.x,
@@ -72,8 +73,30 @@ CreateThread(
                         false
                     )
                 end
+                if
+                    v.inside ~= nil and
+                        GetDistanceBetweenCoords(
+                            playerLoc.x,
+                            playerLoc.y,
+                            playerLoc.z,
+                            v.coords.x,
+                            v.coords.y,
+                            v.coords.z,
+                            true
+                        ) <= v.size.x
+                 then
+                    v.inside()
+                    v.isInside = true
+                else
+                    if v.isInside then
+                        if v.onExit ~= nil then
+                            v.onExit()
+                        end
+                        v.isInside = false
+                    end
+                end
             end
-            Wait(0)
+            Wait(timeToWait)
         end
     end
 )
