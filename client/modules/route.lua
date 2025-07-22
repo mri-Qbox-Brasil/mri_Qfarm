@@ -1,14 +1,13 @@
 -- Farm com rotas, iniciando o turno
-local ImageURL = "https://cfx-nui-ox_inventory/web/images"
-
-local Config = require("shared/config")
 local Utils = lib.require("shared/utils")
-local Defaults = require("client/defaults")
 local Blips = lib.require("client/interaction/blips")
-local Markers = lib.require("client/interaction/markers")
 local Texts = lib.require("client/interaction/texts")
-local Targets = lib.require("client/interaction/targets")
 local Zones = lib.require("client/interaction/zones")
+local Config = require("shared/config")
+local Shared = lib.require("client/modules/shared")
+local Markers = lib.require("client/interaction/markers")
+local Targets = lib.require("client/interaction/targets")
+local Defaults = require("client/defaults")
 local InteractionHandler = lib.require("client/interaction/handler")
 
 local Farms = {}
@@ -19,6 +18,15 @@ local playerFarm = nil
 local farmingItemName = nil
 local amountCollected = 0
 local currentPoint = 0
+
+local function checkInteraction(farmItem, playerFarm)
+    if not isFarming then
+        Utils.debug("checkInteraction", "isFarming is false")
+        return false
+    end
+
+    return Shared.checkInteraction(farmItem, playerFarm)
+end
 
 local function add(item)
     local isPublic = Utils.isPublic(item)
@@ -45,100 +53,6 @@ local function clear()
             remove(k)
         end
     end
-end
-
-local function checkInteraction(farmItem)
-    if not isFarming then
-        Utils.debug("checkInteraction", "isFarming is false")
-        return false
-    end
-
-    if IsPedInAnyVehicle(cache.ped, false) then
-        -- Verifica se o player esta em um veiculo
-        Utils.sendNotification(
-            {
-                id = "farm:error.not_in_vehicle",
-                description = locale("error.not_in_vehicle"),
-                type = "error"
-            }
-        )
-        Utils.debug("checkInteraction", "isPedInAnyVehicle is true")
-        return false
-    end
-
-    if
-        playerFarm.config["vehicle"] and
-            not IsVehicleModel(GetVehiclePedIsIn(PlayerPedId(), true), GetHashKey(playerFarm.config["vehicle"]))
-     then
-        -- Verifica se o player esta no veículo certo
-        Utils.sendNotification(
-            {
-                id = "farm:error.incorrect_vehicle",
-                description = locale("error.incorrect_vehicle"),
-                type = "error"
-            }
-        )
-        Utils.debug("checkInteraction", "isPedInAnyVehicle is true")
-        return false
-    end
-
-    local collectItem = farmItem["collectItem"] or {}
-    local collectItemName = collectItem["name"] or nil
-    local collectItemDurability = collectItem["durability"] or 0
-
-    if collectItemName then
-        local toolItems = Utils.inventory:Search("slots", collectItemName)
-        if not toolItems then
-            -- Verifica se o player tem o item certo
-            Utils.sendNotification(
-                {
-                    id = "farm:error.no_item",
-                    description = locale("error.no_item", collectItemName),
-                    type = "error"
-                }
-            )
-            Utils.debug("checkInteraction", "toolItems is nil")
-            return false
-        end
-
-        if collectItemDurability and collectItemDurability > 0 then
-            local toolItem
-            for k, v in pairs(toolItems) do
-                if v["metadata"] and v.metadata["durability"] and v.metadata.durability then
-                    toolItem = v
-                    break
-                end
-            end
-
-            if toolItem then
-                if toolItem.metadata.durability < collectItemDurability then
-                    -- Verifica se o item tem durabilidade
-                    Utils.sendNotification(
-                        {
-                            id = "farm:error.low_durability",
-                            description = locale("error.low_durability", Items[collectItemName].label),
-                            type = "error"
-                        }
-                    )
-                    Utils.debug("checkInteraction", "toolItem.metadata.durability is less than collectItemDurability")
-                    return false
-                end
-            else
-                -- Verifica se o item configurado está correto
-                Utils.sendNotification(
-                    {
-                        id = "farm:error.invalid_item_type",
-                        description = locale("error.invalid_item_type", collectItemName),
-                        type = "error"
-                    }
-                )
-                Utils.debug("checkInteraction", "toolItem is nil")
-                return false
-            end
-        end
-    end
-
-    return true
 end
 
 local function openPoint(farmItem)
@@ -178,8 +92,7 @@ local function openPoint(farmItem)
     end
 
     isTasking = false
-    ExecuteCommand("e c")
-    ClearPedTasks(cache.ped)
+    Utils.stopAnimations()
 end
 
 function clearPoint(name)
@@ -243,7 +156,7 @@ local function nextTask(farmItem)
                     icon = "fa-solid fa-screwdriver-wrench",
                     label = locale("target.label", farmItem.label),
                     canInteract = function()
-                        return checkInteraction(farmItem)
+                        return checkInteraction(farmItem, playerFarm)
                     end,
                     onSelect = function()
                         openPoint(farmItem)
@@ -252,7 +165,7 @@ local function nextTask(farmItem)
                 },
                 inside = function()
                     lib.showTextUI("[E] " .. locale("target.label", farmItem.label))
-                    if IsControlJustReleased(0, 38) and checkInteraction(farmItem) then
+                    if IsControlJustReleased(0, 38) and checkInteraction(farmItem, playerFarm) then
                         openPoint(farmItem)
                         clearPoint(zoneName)
                     end
@@ -291,8 +204,7 @@ local function stopFarming(isCancel)
     lib.hideTextUI()
 
     if isCancel then
-        ExecuteCommand("e c")
-        ClearPedTasks(cache.ped)
+        Utils.stopAnimations()
     end
 
     Utils.sendNotification(
@@ -386,8 +298,8 @@ local function showFarmMenu(farm)
             ctx.options[#ctx.options + 1] = {
                 title = v["customName"] and v["customName"] ~= "" and v["customName"] or item.label,
                 description = item.description,
-                icon = string.format("%s/%s.png", ImageURL, item.name),
-                image = string.format("%s/%s.png", ImageURL, item.name),
+                icon = string.format("%s/%s.png", Config.ImageURL, item.name),
+                image = string.format("%s/%s.png", Config.ImageURL, item.name),
                 metadata = Utils.getItemMetadata(item, true),
                 disabled = isFarming,
                 onSelect = startFarming,

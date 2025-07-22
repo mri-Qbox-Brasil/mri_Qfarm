@@ -1,7 +1,6 @@
 local Config = require("shared/config")
 local Utils = lib.require("shared/utils")
 local Defaults = require("client/defaults")
-local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
 local newFarm = {
     name = nil,
@@ -1443,7 +1442,7 @@ function listExtraItems(args)
         ctx.options[#ctx.options + 1] = {
             title = Items[k].label,
             description = locale("items.extra_description", v.min, v.max),
-            icon = string.format("%s/%s.png", ImageURL, Items[k].name),
+            icon = string.format("%s/%s.png", Config.ImageURL, Items[k].name),
             iconAnimation = Config.IconAnimation,
             onSelect = extraItemActionMenu,
             args = {
@@ -1772,8 +1771,8 @@ function ListItems(args)
         if Items[k] then
             ctx.options[#ctx.options + 1] = {
                 title = v["customName"] and v["customName"] ~= "" and v["customName"] or Items[k].label,
-                icon = string.format("%s/%s.png", ImageURL, Items[k].name),
-                image = string.format("%s/%s.png", ImageURL, Items[k].name),
+                icon = string.format("%s/%s.png", Config.ImageURL, Items[k].name),
+                image = string.format("%s/%s.png", Config.ImageURL, Items[k].name),
                 metadata = Utils.getItemMetadata(Items[k]),
                 description = Items[k].description,
                 onSelect = itemActionMenu,

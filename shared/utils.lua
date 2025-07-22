@@ -1,9 +1,8 @@
-local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 local Config = require("shared/config")
-
-local inventory = exports.ox_inventory
-local items = inventory:Items()
 local Defaults = require("client/defaults")
+
+local inventory = exports[Config.Inventory]
+local items = inventory:Items()
 
 local PlayerJob = {}
 local PlayerGang = {}
@@ -313,6 +312,11 @@ local function actionProcess(description, duration)
     )
 end
 
+local function stopAnimations()
+    ExecuteCommand("e c")
+    ClearPedTasks(cache.ped)
+end
+
 return {
     items = items,
     inventory = inventory,
@@ -341,5 +345,6 @@ return {
     loadPlayerData = loadPlayerData,
     checkPerms = checkPerms,
     pickAnim = pickAnim,
-    actionProcess = actionProcess
+    actionProcess = actionProcess,
+    stopAnimations = stopAnimations,
 }

@@ -1,8 +1,11 @@
 return {
-    AuthorizationManager = "admin",
+    ImageURL = "https://cfx-nui-ox_inventory/web/images",
+    Inventory = "ox_inventory",
+    PermissionNeeded = "admin",
     Debug = true,
     Interaction = "target", -- target, marker, zone,
     ShowMarker = true,
+    ShowBlips = true,
     ShowOSD = true,
     UseEmoteMenu = true,
     IconAnimation = "fade",

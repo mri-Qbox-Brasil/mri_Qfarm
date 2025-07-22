@@ -1,5 +1,4 @@
 -- Farm AFK, sem rotas, parado no mesmo lugar
-local ImageURL = "https://cfx-nui-ox_inventory/web/images"
 
 local Config = require("shared/config")
 local Utils = lib.require("shared/utils")

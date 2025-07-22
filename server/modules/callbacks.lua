@@ -3,7 +3,7 @@ local Utils = require("shared/utils")
 local Storage = require("server/modules/storage")
 
 local function createFarm(source, farm)
-    if not IsPlayerAceAllowed(source, Config.AuthorizationManager) then
+    if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then
         return {type = "error", description = locale("error.not_allowed")}
     end
 
@@ -20,7 +20,7 @@ local function updateFarm(source, farm)
         return {type = "error", description = locale("error.farm_not_found", farm.farmId)}
     end
 
-    if not IsPlayerAceAllowed(source, Config.AuthorizationManager) then
+    if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then
         return {type = "error", description = locale("error.not_allowed")}
     end
 
@@ -35,7 +35,7 @@ local function deleteFarm(source, farmId)
         return {type = "error", description = locale("error.farm_not_found", farmId)}
     end
 
-    if not IsPlayerAceAllowed(source, Config.AuthorizationManager) then
+    if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then
         return {type = "error", description = locale("error.not_allowed")}
     end
 
@@ -51,7 +51,7 @@ local function duplicateFarm(source, farmId)
         return {type = "error", description = locale("error.farm_not_found", farmId)}
     end
 
-    if not IsPlayerAceAllowed(source, Config.AuthorizationManager) then
+    if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then
         return {type = "error", description = locale("error.not_allowed")}
     end
 
