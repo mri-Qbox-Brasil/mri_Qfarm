@@ -18,3 +18,38 @@ local farmData = {
     playerFarm = nil,
     farmingItemName = nil
 }
+
+local function add(item)
+    local isPublic = Utils.isPublic(item)
+    if
+        isPublic or Utils.roleCheck(PlayerJob, item.group.name, item.group.grade) or
+            Utils.roleCheck(PlayerGang, item.group.name, item.group.grade)
+     then
+        Utils.debug(string.format("Adding element: %s", item.name))
+        Farms[item.name] = item
+    else
+        Utils.debug(string.format("Skipping element: %s", item.name))
+    end
+end
+
+local function remove(name)
+    Utils.debug(string.format("Removing element: %s", name))
+    Farms[name] = nil
+end
+
+local function clear()
+    if #Farms > 0 then
+        for k, v in pairs(Farms) do
+            remove(k)
+        end
+    end
+end
+
+local function loadFarms()
+end
+
+return {
+    add = add,
+    clear = clear,
+    loadFarms = loadFarms
+}

@@ -193,7 +193,7 @@ local function showFarmMenu(farm)
 end
 
 local function loadFarms()
-    Utils.debug("loadFarms")
+    Utils.debug("Route", "loadFarms")
     for k, v in pairs(Farms) do
         local start = v.config.start
         start.location = vector3(start.location.x, start.location.y, start.location.z)

@@ -1,3 +1,4 @@
+local Afk = lib.require("client/modules/afk")
 local Utils = lib.require("shared/utils")
 local Blips = lib.require("client/interaction/blips")
 local Route = lib.require("client/modules/route")
@@ -12,29 +13,23 @@ local function loadFarms()
     Blips.clear()
     Route.clear()
     NoStart.clear()
+    Afk.clear()
     for k, v in pairs(Defaults.Farms) do
-        if v.config.nostart then
+        if v.config.afk then
+            Afk.add(v)
+        elseif v.config.nostart then
             NoStart.add(v)
         elseif v.config.start["location"] then
             Route.add(v)
         end
     end
+    Afk.loadFarms()
     Route.loadFarms()
     NoStart.loadFarms()
     if Config.Debug then
         print("^2[mri_Qfarm] Farms carregadas com sucesso^7")
     end
 end
-
-AddEventHandler(
-    "onResourceStart",
-    function(resourceName)
-        if resourceName == GetCurrentResourceName() then
-            Utils.loadPlayerData(QBX.PlayerData)
-            loadFarms()
-        end
-    end
-)
 
 AddEventHandler(
     "onResourceStop",
