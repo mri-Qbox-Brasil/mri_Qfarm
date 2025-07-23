@@ -1,6 +1,6 @@
-local Config = require("shared/config")
-local Utils = require("shared/utils")
-local Storage = require("server/modules/storage")
+local Config = lib.require("shared/config")
+local Utils = lib.require("shared/utils")
+local Storage = lib.require("server/modules/storage")
 
 local function createFarm(source, farm)
     if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then

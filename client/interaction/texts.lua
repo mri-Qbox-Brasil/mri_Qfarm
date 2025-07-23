@@ -19,13 +19,13 @@ local function clear()
     end
 end
 
-local function show(text, delay, type, playSound)
-    local type = type or 0
+local function show(text, delay, textType, playSound)
+    local textType = textType or 0
     local delay = delay or 5000
     local playSound = playSound or false
     BeginTextCommandDisplayHelp("STRING")
     AddTextComponentSubstringKeyboardDisplay(text)
-    EndTextCommandDisplayHelp(type, false, playSound, delay)
+    EndTextCommandDisplayHelp(textType, false, playSound, delay)
 end
 
 CreateThread(function()

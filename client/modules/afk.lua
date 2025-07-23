@@ -10,3 +10,11 @@ local Targets = lib.require("client/interaction/targets")
 local Zones = lib.require("client/interaction/zones")
 
 local Farms = {}
+local farmData = {
+    isFarming = false,
+    isTasking = false,
+    currentPoint = 0,
+    amountCollected = 0,
+    playerFarm = nil,
+    farmingItemName = nil
+}

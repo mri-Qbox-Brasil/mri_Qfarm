@@ -1,10 +1,10 @@
 local Utils = lib.require("shared/utils")
 local Blips = lib.require("client/interaction/blips")
 local Route = lib.require("client/modules/route")
-local Config = require("shared/config")
+local Config = lib.require("shared/config")
 local Markers = lib.require("client/interaction/markers")
 local NoStart = lib.require("client/modules/no_start")
-local Defaults = require("client/defaults")
+local Defaults = lib.require("client/defaults")
 local InteractionHandler = lib.require("client/interaction/handler")
 
 local function loadFarms()

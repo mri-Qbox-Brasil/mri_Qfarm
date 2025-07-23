@@ -3,12 +3,20 @@ local Utils = lib.require("shared/utils")
 local Blips = lib.require("client/interaction/blips")
 local Texts = lib.require("client/interaction/texts")
 local Zones = lib.require("client/interaction/zones")
-local Config = require("shared/config")
+local Config = lib.require("shared/config")
 local Markers = lib.require("client/interaction/markers")
 local Targets = lib.require("client/interaction/targets")
-local Defaults = require("client/defaults")
+local Defaults = lib.require("client/defaults")
 
 local Farms = {}
+local farmData = {
+    isFarming = false,
+    isTasking = false,
+    currentPoint = 0,
+    amountCollected = 0,
+    playerFarm = nil,
+    farmingItemName = nil
+}
 
 local function add(item)
     local isPublic = Utils.isPublic(item)
@@ -34,6 +42,15 @@ local function clear()
             remove(k)
         end
     end
+end
+
+local function startAutoFarm(args)
+    farmData.isFarming = true
+    farmData.isTasking = false
+    farmData.currentPoint = 0
+    farmData.amountCollected = 0
+    farmData.playerFarm = args.farm
+    farmData.farmingItemName = args.itemName
 end
 
 local function loadFarms()
