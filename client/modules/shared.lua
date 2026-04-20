@@ -5,6 +5,9 @@ local Config = lib.require("shared/config")
 local Markers = lib.require("client/interaction/markers")
 local Defaults = lib.require("client/defaults")
 local InteractionHandler = lib.require("client/interaction/handler")
+local Texts = lib.require("client/interaction/texts")
+local Targets = lib.require("client/interaction/targets")
+local Zones = lib.require("client/interaction/zones")
 
 local function isInAnyVehicle()
     if IsPedInAnyVehicle(cache.ped, false) then
@@ -274,12 +277,103 @@ local function nextTask(farmData)
     )
 end
 
+local function stopFarming(farmData, isCancel)
+    Utils.debug("stopFarming", isCancel)
+    clearFarmData(farmData)
+
+    if Config.ShowOSD then
+        Texts.remove("farming")
+    end
+
+    if Config.Interaction == "target" then
+        Targets.removeGroup("farm-point")
+    elseif Config.Interaction == "zone" then
+        Zones.removeGroup("farm-point")
+    end
+
+    if Config.ShowMarker then
+        Markers.removeGroup("farm-point")
+    end
+
+    Blips.removeGroup("farm-point")
+    lib.hideTextUI()
+
+    if isCancel then
+        Utils.stopAnimations()
+    end
+
+    Utils.sendNotification(
+        {
+            description = isCancel and locale("text.cancel_shift") or locale("text.end_shift"),
+            type = isCancel and "error" or "info"
+        }
+    )
+end
+
+local function farmThread(farmData)
+    CreateThread(
+        function()
+            while farmData.isFarming do
+                if IsControlJustReleased(0, 168) then
+                    stopFarming(farmData, true)
+                end
+                Wait(0)
+            end
+        end
+    )
+end
+
+local function showFarmMenu(farm, farmData, onStart)
+    if not Utils.checkPerms(farm) then
+        return
+    end
+
+    local ctx = {
+        id = "farm_menu",
+        title = farm.name,
+        icon = "fa-solid fa-briefcase",
+        options = {}
+    }
+
+    for itemName, v in pairs(farm.config.items) do
+        local item = Utils.items[itemName]
+        if item ~= nil then
+            ctx.options[#ctx.options + 1] = {
+                title = v["customName"] and v["customName"] ~= "" and v["customName"] or item.label,
+                description = item.description,
+                icon = string.format("%s/%s.png", Config.ImageURL, item.name),
+                image = string.format("%s/%s.png", Config.ImageURL, item.name),
+                metadata = Utils.getItemMetadata(item, true),
+                disabled = farmData.isFarming,
+                onSelect = onStart,
+                args = {farm = farm, itemName = itemName}
+            }
+        end
+    end
+
+    if farmData.isFarming then
+        local item = Utils.items[farmData.farmingItemName]
+        ctx.options[#ctx.options + 1] = {
+            title = locale("menus.cancel_farm"),
+            icon = "fa-solid fa-ban",
+            description = item.label,
+            onSelect = function()
+                stopFarming(farmData, true)
+            end
+        }
+    end
+
+    lib.registerContext(ctx)
+    lib.showContext(ctx.id)
+end
+
 return {
-    isTasking = isTasking,
-    amountCollected = amountCollected,
     checkInteraction = checkInteraction,
     nextTask = nextTask,
     openPoint = openPoint,
     clearPoint = clearPoint,
-    clearFarmData = clearFarmData
+    clearFarmData = clearFarmData,
+    stopFarming = stopFarming,
+    farmThread = farmThread,
+    showFarmMenu = showFarmMenu,
 }

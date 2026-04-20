@@ -55,10 +55,8 @@ local function remove(name)
 end
 
 local function clear()
-    if #Farms > 0 then
-        for k, v in pairs(Farms) do
-            remove(k)
-        end
+    for k in pairs(Farms) do
+        remove(k)
     end
 end
 
