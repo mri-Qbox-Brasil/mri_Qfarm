@@ -21,11 +21,7 @@ local farmData = {
 }
 
 local function add(item)
-    local isPublic = Utils.isPublic(item)
-    if
-        isPublic or Utils.roleCheck(PlayerJob, item.group.name, item.group.grade) or
-            Utils.roleCheck(PlayerGang, item.group.name, item.group.grade)
-     then
+    if Utils.checkPerms(item) then
         Utils.debug("Adding route", item.name)
         Farms[item.name] = item
     else

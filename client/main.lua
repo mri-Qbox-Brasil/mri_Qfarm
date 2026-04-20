@@ -53,7 +53,7 @@ RegisterNetEvent(
 RegisterNetEvent(
     "QBCore:Client:OnJobUpdate",
     function(JobInfo)
-        Utils.playerJob = JobInfo
+        Utils.setPlayerJob(JobInfo)
         loadFarms()
     end
 )
@@ -61,7 +61,7 @@ RegisterNetEvent(
 RegisterNetEvent(
     "QBCore:Client:OnGangUpdate",
     function(GangInfo)
-        Utils.playerGang = GangInfo
+        Utils.setPlayerGang(GangInfo)
         loadFarms()
     end
 )

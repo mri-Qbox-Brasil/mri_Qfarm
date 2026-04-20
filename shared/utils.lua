@@ -277,6 +277,14 @@ local function loadPlayerData(playerData)
     PlayerGang = playerData.gang
 end
 
+local function setPlayerJob(job)
+    PlayerJob = job
+end
+
+local function setPlayerGang(gang)
+    PlayerGang = gang
+end
+
 local function checkPerms(farm)
     return isPublic(farm) or roleCheck(PlayerJob, farm.group.name, farm.group.grade) or
         roleCheck(PlayerGang, farm.group.name, farm.group.grade)
@@ -350,6 +358,8 @@ return {
     tpToLoc = tpToLoc,
     confirmationDialog = confirmationDialog,
     loadPlayerData = loadPlayerData,
+    setPlayerJob = setPlayerJob,
+    setPlayerGang = setPlayerGang,
     checkPerms = checkPerms,
     pickAnim = pickAnim,
     actionProcess = actionProcess,
