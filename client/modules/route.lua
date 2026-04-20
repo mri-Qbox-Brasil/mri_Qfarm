@@ -92,9 +92,10 @@ end
 
 local function loadFarms()
     Utils.debug("Route", "loadFarms")
-    for k, v in pairs(Farms) do
-        local start = v.config.start
-        start.location = vector3(start.location.x, start.location.y, start.location.z)
+    for k, v in pairs(Farms or {}) do
+        if v.config and v.config.start and v.config.start.location then
+            local start = v.config.start
+            start.location = vector3(start.location.x, start.location.y, start.location.z)
         local zoneName = string.format("farm-start-%s", k)
         InteractionHandler.add(
             {
@@ -129,6 +130,7 @@ local function loadFarms()
                 }
             }
         )
+        end
     end
 end
 

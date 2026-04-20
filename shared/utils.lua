@@ -1,5 +1,5 @@
-local Config = require("shared/config")
-local Defaults = require("client/defaults")
+local Config = lib.require("shared/config")
+local Defaults = lib.require("client/defaults")
 
 local inventory = exports[Config.Inventory]
 -- Create a proxy for items to always fetch fresh data
@@ -26,7 +26,7 @@ local function itemAdd(source, item, amount)
 end
 
 local function findById(id, farms)
-    for k, v in pairs(farms) do
+    for k, v in pairs(farms or {}) do
         if v.farmId == id then
             return k
         end
@@ -50,9 +50,6 @@ end
 local function dispatchEvents(source, response)
     Wait(2000)
     TriggerClientEvent("mri_Qfarm:client:LoadFarms", -1)
-    if response then
-        sendNotification({source = source, description = response.description, type = response.type})
-    end
 end
 
 local function getPedCoords()
@@ -179,7 +176,7 @@ end
 local function getGroupsLabel(groups)
     local baseGroups = getBaseGroups(true)
     local groupName = ""
-    for i = 1, #(groups) do
+    for i = 1, #(groups or {}) do
         local group = locale("error.group_not_found", groups[i])
         if baseGroups[groups[i]] then
             group = baseGroups[groups[i]]["label"]
@@ -233,7 +230,7 @@ local function getMetadataFromFarm(key)
     local data = {}
     local items = Defaults.Farms[key].config.items
     for k, v in pairs(items) do
-        if Items[k] then
+        if items[k] then
             data[#data + 1] = {
                 label = locale("menus.route"),
                 value = string.format("%s (%s)", items[k].label, k)

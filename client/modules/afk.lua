@@ -1,8 +1,8 @@
 -- Farm AFK, sem rotas, parado no mesmo lugar
 
-local Config = require("shared/config")
+local Config = lib.require("shared/config")
 local Utils = lib.require("shared/utils")
-local Defaults = require("client/defaults")
+local Defaults = lib.require("client/defaults")
 local Text = lib.require("client/interaction/texts")
 local Shared = lib.require("client/modules/shared")
 local InteractionHandler = lib.require("client/interaction/handler")
@@ -72,14 +72,11 @@ local function startFarming(args)
         )
     end
 
-    -- AFK Logic: Just wait and collect
     while farmData.isFarming do
         if farmData.isTasking then
              Wait(1000)
         else
-            if not farmData.farmItem.unlimited and farmData.amountCollected >= (farmData.farmItem.max or 100) then -- Arbitrary max if not set for AFK? Or check unlimited
-                 -- Actually AFK usually doesn't have points, so 'amountCollected' limit might depend on weight or custom config
-                 -- For now, let's assume it runs until stopped or full
+            if not farmData.farmItem.unlimited and farmData.amountCollected >= (farmData.farmItem.max or 100) then
                 if not exports.ox_inventory:CanCarryItem(cache.source, farmData.farmingItemName, 1) then
                     Utils.sendNotification({description = locale("error.inventory_full"), type = "error"})
                     Shared.stopFarming(farmData)
@@ -87,11 +84,7 @@ local function startFarming(args)
                 end
             end
 
-            -- Perform collection
             farmData.isTasking = true
-
-            -- Use openPoint derived logic but without interaction requirement?
-            -- openPoint has animation and progress bar. AFK might just be a timer.
 
             local duration = farmData.farmItem["collectTime"] or Defaults.CollectTime
 
@@ -103,16 +96,16 @@ local function startFarming(args)
             end
 
             farmData.isTasking = false
-            Wait(1000) -- Small delay between collections
+            Wait(1000)
         end
     end
 end
 
 local function loadFarms()
     Utils.debug("AFK", "loadFarms")
-    for k, v in pairs(Farms) do
-        local start = v.config.start
-        if start and start.location then
+    for k, v in pairs(Farms or {}) do
+        if v.config and v.config.start and v.config.start.location then
+             local start = v.config.start
              start.location = vector3(start.location.x, start.location.y, start.location.z)
              local zoneName = string.format("farm-start-%s", k)
              InteractionHandler.add(

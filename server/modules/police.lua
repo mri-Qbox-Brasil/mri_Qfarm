@@ -7,10 +7,8 @@ function Police.alert(source, farm, itemName, alertConfig)
     local alertType = alertConfig.type or "drugsell"
     local coords = GetEntityCoords(GetPlayerPed(source))
 
-    -- Corrigindo o erro com GetStreetNameAtCoord
-    local streetName = "Desconhecido" -- Valor padrão caso não consiga obter o nome da rua
+    local streetName = "Desconhecido"
 
-    -- Adicionando prints de debug
     if Config.Debug then
         print("^2[mri_Qfarm] Alerta policial acionado^7")
         print("^2[mri_Qfarm] - Jogador: " .. source .. "^7")
@@ -22,14 +20,12 @@ function Police.alert(source, farm, itemName, alertConfig)
 
     local message = locale("farm.alert_message", farm.name)
 
-    -- Get all police officers
     local players = QBCore.Functions.GetQBPlayers()
     local policeCount = 0
 
     for _, player in pairs(players) do
         if player.PlayerData.job.name == "police" and player.PlayerData.job.onduty then
             policeCount = policeCount + 1
-            -- Send notification to police officers
             TriggerClientEvent(
                 "mri_Qfarm:client:PoliceAlert",
                 player.PlayerData.source,
@@ -59,14 +55,11 @@ function Police.checkAndAlert(src, cfg, itemName)
     local itemCfg = cfg.config.items[itemName]
     local itemAlertConfig = itemCfg.policeAlert or {}
 
-    -- Verifica se o alerta global está ativado OU se o item tem configuração específica
     local itemHasAlert = itemAlertConfig.chance ~= nil
 
     if (alertConfig.enabled or itemHasAlert) then
-        -- Corrigindo a lógica para priorizar corretamente a chance do item
         local chance = alertConfig.chance or 0
 
-        -- Se o item tiver uma configuração de chance específica, use-a
         if itemAlertConfig.chance ~= nil then
             chance = itemAlertConfig.chance
         end
@@ -84,10 +77,8 @@ function Police.checkAndAlert(src, cfg, itemName)
         end
 
         if math.random(1, 100) <= chance then
-            -- Usa o tipo específico do item se existir, senão usa o tipo global
             local alertType = itemAlertConfig.type or alertConfig.type or "drugsell"
 
-            -- Trigger police alert internally
             Police.alert(src, cfg, itemName, {
                 type = alertType,
                 chance = chance,

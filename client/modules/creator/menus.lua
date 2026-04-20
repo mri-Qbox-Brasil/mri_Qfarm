@@ -9,7 +9,6 @@ end
 
 local Menus = {}
 
--- Forward declarations
 local manageFarms
 local ListFarm
 local actionMenu
@@ -21,8 +20,6 @@ local pointMenu
 local listExtraItems
 local extraItemActionMenu
 
--- Helper for ifThen (duplicated or should be shared? It's simple enough to duplicate or move to Utils, but Utils is shared/utils)
--- Let's just use if/else in code or duplicate simple helper
 local function ifThen(condition, ifTrue, ifFalse)
     if condition then
         return ifTrue
@@ -182,8 +179,7 @@ function extraItemActionMenu(args)
 end
 
 function listExtraItems(args)
-    -- If called from addExtraItem failure or direct call
-    if not args.farmKey then args = args[1] end -- Handle weird arg passing if any
+    if not args.farmKey then args = args[1] end
 
     local Items = getItems()
     local farm = Defaults.Farms[args.farmKey]
@@ -230,8 +226,6 @@ function configMenu(args)
     local farm = Defaults.Farms[args.farmKey]
     local item = farm.config.items[args.itemKey]
 
-    -- DefaultCollectTime local def or import? It was local in creator.lua.
-    -- Let's assume Defaults.CollectTime is available or define it.
     local DefaultCollectTime = Defaults.CollectTime or 5000
 
     local ctx = {
@@ -521,7 +515,7 @@ function itemActionMenu(args)
 end
 
 function ListItems(args)
-    if not args.farmKey then args = args[1] end -- Safety
+    if not args.farmKey then args = args[1] end
 
     local Items = getItems()
     local farm = Defaults.Farms[args.farmKey]
@@ -545,7 +539,13 @@ function ListItems(args)
             }
         }
     }
-    for k, v in pairs(farm.config.items) do
+    if not farm or not farm.config then
+        Utils.debug("ListItems", "Farm or config is nil")
+        if callback then callback() end
+        return
+    end
+
+    for k, v in pairs(farm.config.items or {}) do
         if Items[k] then
             ctx.options[#ctx.options + 1] = {
                 title = v["customName"] and v["customName"] ~= "" and v["customName"] or Items[k].label,
@@ -581,13 +581,22 @@ function ListItems(args)
 end
 
 function actionMenu(key)
-    -- Handle callback arg
-    if type(key) == "table" then key = key.farmKey end -- Sometimes callback passes args
+    if type(key) == "table" then key = key.farmKey end
 
     local farm = Defaults.Farms[key]
+    if not farm then
+        Utils.debug("actionMenu", "Farm is nil for key " .. tostring(key))
+        return
+    end
+
     local groupName = locale("creator.no_group")
     local grade = "0"
     local disableGradeSet = false
+
+    farm.group = farm.group or {}
+    farm.config = farm.config or { start = {} }
+    farm.config.start = farm.config.start or {}
+
     if farm.group["name"] then
         groupName = Utils.getGroupsLabel(farm.group["name"])
     else
@@ -604,7 +613,7 @@ function actionMenu(key)
 
     local ctx = {
         id = "action_farm",
-        title = farm.name:upper(),
+        title = (farm.name or "UNKNOWN"):upper(),
         menu = "list_farms",
         options = {
             {
@@ -790,8 +799,9 @@ function ListFarm()
         description = locale("actions.farm.description_title", #Defaults.Farms),
         options = {}
     }
-    for k, v in pairs(Defaults.Farms) do
+    for k, v in pairs(Defaults.Farms or {}) do
         local groupName = locale("creator.no_group")
+        v.group = v.group or {}
         if v.group["name"] then
             groupName = Utils.getGroupsLabel(v.group["name"])
         end
@@ -820,6 +830,16 @@ function manageFarms()
         description = locale("actions.farm.description_title", #Defaults.Farms),
         options = {
             {
+                title = locale("actions.import"),
+                description = locale("actions.description_import", locale("actions.farm.label")),
+                icon = "file-import",
+                iconAnimation = Config.IconAnimation,
+                onSelect = Actions.importFarm,
+                args = {
+                    callback = ListFarm
+                }
+            },
+            {
                 title = locale("actions.farm.create"),
                 description = locale("actions.farm.description_create"),
                 icon = "square-plus",
@@ -837,13 +857,6 @@ function manageFarms()
                 iconAnimation = Config.IconAnimation,
                 arrow = true,
                 onSelect = ListFarm
-            },
-            {
-                title = locale("actions.import"),
-                description = locale("actions.description_import", locale("actions.farm")),
-                icon = "file-import",
-                iconAnimation = Config.IconAnimation,
-                onSelect = Actions.importFarm
             }
         }
     }

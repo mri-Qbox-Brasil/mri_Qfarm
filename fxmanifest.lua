@@ -17,11 +17,16 @@ shared_scripts {
 
 server_scripts {
     "@oxmysql/lib/MySQL.lua",
-    "server/**/*.lua"
+    "server/main.lua",
+    "server/modules/**/*.lua"
 }
 
 client_scripts {
-    "client/**/*.lua"
+    "client/main.lua",
+    "client/defaults.lua",
+    "client/creator.lua",
+    "client/modules/**/*.lua",
+    "client/interaction/**/*.lua"
 }
 
 dependencies {
@@ -29,5 +34,6 @@ dependencies {
 }
 
 files {
-    "locales/*.json"
+    "locales/*.json",
+    "database.sql"
 }

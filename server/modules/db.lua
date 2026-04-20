@@ -1,12 +1,11 @@
+local DB = {}
+
 local function sanitizeSQL(content)
-    -- Remove comentários de bloco: /* ... */
     content = content:gsub("/%*.-%*/", "")
-    -- Remove comentários de linha: -- até o fim da linha
     content = content:gsub("%-%-.-\n", "\n")
     return content
 end
 
--- Função utilitária para dividir string
 local function splitStr(inputstr, sep)
     sep = sep or "%s"
     local t = {}
@@ -19,7 +18,6 @@ local function splitStr(inputstr, sep)
     return t
 end
 
--- Executa queries SQL em sequência com feedback e tratamento de erro
 local function executeQueries(queries, callback)
     local index = 1
 
@@ -43,8 +41,7 @@ local function executeQueries(queries, callback)
     executeNextQuery()
 end
 
--- Lê o arquivo SQL e inicia a execução das queries
-local function createTables()
+function DB.createTables()
     local filePath = "database.sql"
     local content = LoadResourceFile(GetCurrentResourceName(), filePath)
 
@@ -53,17 +50,18 @@ local function createTables()
         return
     end
 
-    content = sanitizeSQL(content) -- Remove comentários
+    content = sanitizeSQL(content)
     local queries = splitStr(content, ";")
     executeQueries(queries, function()
         print("Todas as tabelas foram verificadas/criadas.")
     end)
 end
 
--- Dispara a criação das tabelas ao iniciar o recurso
 AddEventHandler("onResourceStart", function(resourceName)
     if resourceName == GetCurrentResourceName() then
         print("Recurso " .. resourceName .. " iniciado. Verificando/criando tabelas...")
-        createTables()
+        DB.createTables()
     end
 end)
+
+return DB

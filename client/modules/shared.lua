@@ -54,7 +54,6 @@ local function hasCollectItemWithDurability(farmItem)
         Utils.debug("checkInteraction", "farm has collectItem")
         local toolItems = Utils.inventory:Search("slots", collectItemName)
         if not toolItems then
-            -- Verifica se o player tem o item certo
             Utils.sendNotification(
                 {
                     id = "farm:error.no_item",
@@ -79,7 +78,6 @@ local function hasCollectItemWithDurability(farmItem)
             if toolItem then
                 Utils.debug("checkInteraction", "toolItem is not nil")
                 if toolItem.metadata.durability < collectItemDurability then
-                    -- Verifica se o item tem durabilidade
                     Utils.sendNotification(
                         {
                             id = "farm:error.low_durability",
@@ -91,7 +89,6 @@ local function hasCollectItemWithDurability(farmItem)
                     return false
                 end
             else
-                -- Verifica se o item configurado está correto
                 Utils.sendNotification(
                     {
                         id = "farm:error.invalid_item_type",
@@ -215,17 +212,28 @@ local function nextTask(farmData)
 
     farmData.isTasking = true
 
+    if not farmData or not farmData.farmItem or not farmData.farmItem.points or #farmData.farmItem.points == 0 then
+        Utils.debug("nextTask", "Missing points or farmItem data")
+        stopFarming(farmData, true)
+        return
+    end
+
     if farmData.farmItem.randomRoute then
-        farmData.currentPoint = math.random(1, #(farmData.farmItem.points))
+        farmData.currentPoint = math.random(1, #farmData.farmItem.points)
     else
-        if farmData.farmItem.unlimited and farmData.currentPoint >= #(farmData.farmItem.points) then
+        if farmData.farmItem.unlimited and farmData.currentPoint >= #farmData.farmItem.points then
             farmData.currentPoint = 1
         else
-            farmData.currentPoint = farmData.currentPoint + 1
+            farmData.currentPoint = (farmData.currentPoint or 0) + 1
         end
     end
 
     local farmPoint = farmData.farmItem.points[farmData.currentPoint]
+    if not farmPoint then
+        Utils.debug("nextTask", "farmPoint is nil for point " .. tostring(farmData.currentPoint))
+        stopFarming(farmData, true)
+        return
+    end
 
     local blip = Defaults.New(Defaults.Blip)
 
@@ -335,7 +343,7 @@ local function showFarmMenu(farm, farmData, onStart)
         options = {}
     }
 
-    for itemName, v in pairs(farm.config.items) do
+    for itemName, v in pairs(farm.config.items or {}) do
         local item = Utils.items[itemName]
         if item ~= nil then
             ctx.options[#ctx.options + 1] = {

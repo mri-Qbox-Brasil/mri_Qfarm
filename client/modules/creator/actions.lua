@@ -20,7 +20,7 @@ local newFarm = {
         policeAlert = {
             enabled = false,
             chance = 30,
-            type = "drugsell" -- Tipo de alerta padrão no ps-dispatch
+            type = "drugsell"
         }
     },
     group = {
@@ -44,7 +44,6 @@ local newItem = {
     collectVehicle = nil
 }
 
--- Definindo DefaultCollectTime localmente caso não venha de Defaults
 local DefaultCollectTime = Defaults.CollectTime or 5000
 
 local function ifThen(condition, ifTrue, ifFalse)
@@ -69,12 +68,13 @@ function Actions.deleteFarm(args)
     local farm = Defaults.Farms[args.farmKey]
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.farm"), Defaults.Farms[args.farmKey].name),
+        locale("actions.confirmation_description", locale("actions.farm.label"), Defaults.Farms[args.farmKey].name),
         Defaults.Farms,
         args.farmKey
     )
     if result then
-        lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
+        local response = lib.callback.await("mri_Qfarm:server:DeleteFarm", false, farm.farmId)
+        lib.notify(response)
         args.callback()
     else
         if args.callbackCancel then
@@ -91,7 +91,7 @@ function Actions.deleteItem(args)
     end
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.item"), itemLabel),
+        locale("actions.confirmation_description", locale("actions.item.label"), itemLabel),
         Defaults.Farms[args.farmKey].config.items,
         args.itemKey
     )
@@ -116,7 +116,7 @@ end
 function Actions.deletePoint(args)
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.point"), args.name),
+        locale("actions.confirmation_description", locale("actions.point.label"), args.name),
         Defaults.Farms[args.farmKey].config.items[args.itemKey].points,
         args.pointKey
     )
@@ -132,7 +132,7 @@ function Actions.deleteExtraItem(args)
     local Items = getItems()
     local result =
         delete(
-        locale("actions.confirmation_description", locale("actions.extra_item"), Items[args.extraItemKey].label),
+        locale("actions.confirmation_description", locale("actions.extra_item.label"), Items[args.extraItemKey].label),
         Defaults.Farms[args.farmKey].config.items[args.itemKey].extraItems,
         args.extraItemKey
     )
@@ -852,7 +852,10 @@ function Actions.resetItemPoliceAlert(args)
     })
 end
 
-function Actions.importFarm()
+function Actions.importFarm(args)
+    local prefilledData = type(args) == "table" and args.prefilledData or (type(args) == "string" and args or nil)
+    local callback = type(args) == "table" and args.callback or nil
+
     local input = lib.inputDialog(
         locale("actions.import"),
         {
@@ -860,18 +863,22 @@ function Actions.importFarm()
                 type = "input",
                 label = locale("actions.farm.import_name"),
                 description = locale("actions.farm.description_import_name"),
-                required = true
+                required = false
             },
             {
                 type = "textarea",
                 label = locale("actions.farm.import_data"),
                 description = locale("actions.farm.description_import_data"),
+                default = prefilledData or "",
                 required = true
             }
         }
     )
 
-    if not input then return end
+    if not input then
+        if callback then callback() end
+        return
+    end
 
     local farmName = input[1]
     local farmData = input[2]
@@ -885,11 +892,17 @@ function Actions.importFarm()
             type = "error",
             description = locale("actions.import_invalid_json")
         })
+        if callback then callback() end
         return
     end
 
+    local finalName = farmName
+    if not finalName or finalName == "" then
+        finalName = decodedData.name or "Imported Farm"
+    end
+
     local newFarm = {
-        name = farmName,
+        name = finalName,
         config = decodedData.config or {},
         group = decodedData.group or {}
     }
@@ -902,20 +915,31 @@ function Actions.importFarm()
         newFarm.config.start = {}
     end
 
-    local success = lib.callback.await("mri_Qfarm:server:SaveFarm", false, newFarm)
+    local result = lib.callback.await("mri_Qfarm:server:SaveFarm", false, newFarm)
 
-    if success then
+    if result.type == "success" then
         lib.notify({
             type = "success",
             description = locale("actions.imported")
         })
 
         TriggerEvent("mri_Qfarm:client:LoadFarms")
+        if callback then callback() end
     else
         lib.notify({
             type = "error",
-            description = locale("actions.not_imported")
+            description = result.description
         })
+
+        -- If it's a duplicate name, re-open the dialog with current data
+        if result.errorType == "duplicate" then
+            Actions.importFarm({
+                prefilledData = farmData,
+                callback = callback
+            })
+        else
+            if callback then callback() end
+        end
     end
 end
 
@@ -1245,25 +1269,17 @@ function Actions.duplicateFarm(args)
         group = json.decode(json.encode(farm.group))
     }
 
-    local success = lib.callback.await("mri_Qfarm:server:SaveFarm", false, newFarm)
+    local response = lib.callback.await("mri_Qfarm:server:SaveFarm", false, newFarm)
+    lib.notify(response)
 
-    if success then
-        lib.notify({
-            type = "success",
-            description = locale("actions.duplicated")
-        })
-
+    if response.type == "success" then
         TriggerEvent("mri_Qfarm:client:LoadFarms")
-    else
-        lib.notify({
-            type = "error",
-            description = locale("actions.not_duplicated")
-        })
     end
 end
 
 function Actions.saveFarm(args)
-    lib.callback.await("mri_Qfarm:server:SaveFarm", false, Defaults.Farms[args.farmKey], args.farmKey)
+    local response = lib.callback.await("mri_Qfarm:server:SaveFarm", false, Defaults.Farms[args.farmKey], args.farmKey)
+    lib.notify(response)
     args.callback(args.farmKey)
 end
 

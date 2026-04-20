@@ -1,9 +1,11 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
 local Config = require("shared/config")
 local Utils = require("shared/utils")
-local Storage = require("server/modules/storage")
-local Police = require("server/modules/police")
-require("server/modules/callbacks")
+local Storage = lib.require("server/modules/storage")
+local Police = lib.require("server/modules/police")
+local DB = lib.require("server/modules/db")
+local Callbacks = lib.require("server/modules/callbacks")
+Callbacks.init()
 local Farms = GlobalState.Farms or {}
 
 lib.callback.register(
@@ -71,14 +73,12 @@ lib.callback.register(
     end
 )
 
-
-
 AddEventHandler(
     "onResourceStart",
     function(resource)
         Wait(200)
         if resource == GetCurrentResourceName() then
-            Storage:loadFarms()
+            Storage.loadFarms()
             Utils.dispatchEvents(source)
         end
     end

@@ -7,6 +7,8 @@ local Markers = lib.require("client/interaction/markers")
 local NoStart = lib.require("client/modules/no_start")
 local Defaults = lib.require("client/defaults")
 local InteractionHandler = lib.require("client/interaction/handler")
+local Creator = lib.require("client/creator")
+Creator.init()
 
 local function loadFarms()
     InteractionHandler.clear()
