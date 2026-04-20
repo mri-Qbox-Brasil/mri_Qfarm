@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        working-directory: ./.release
+        run: npm install
+
+      - name: Release
+        working-directory: ./.release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release -c ./release.config.js
+
+      - name: Post to Discord
+        if: hashFiles('.VERSION') != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.UPDATE_DISCORD_WEBHOOK }}
+          LOGO_URL: ${{ secrets.LOGO_MRIQBOX_URL }}
+          RESOURCE_IMAGE: ${{ secrets.RESOURCE_MRIQBOX_URL }}
+          INVITE_URL: ${{ secrets.INVITE_DISCORD_URL }}
+          DOCS_URL: ${{ secrets.DOCS_MRIQBOX_URL }}
+        run: |
+          VERSION=$(cat .VERSION)
+          NOTES=$(cat .NOTES)
+          REPO_NAME=${{ github.event.repository.name }}
+          REPO_URL="https://github.com/${{ github.repository }}"
+          REPO_DESCRIPTION=$(curl -s https://api.github.com/repos/${{ github.repository }} | jq -r .description)
+
+          EMBED_DATA=$(jq -n \
+            --arg title "[$REPO_NAME] Nova versão disponível: v$VERSION" \
+            --arg url "$REPO_URL/releases/tag/v$VERSION" \
+            --arg desc "$REPO_DESCRIPTION" \
+            --arg notes "$NOTES" \
+            --arg repo_commits "$REPO_URL/commits/main" \
+            --arg invite "$INVITE_URL" \
+            --arg docs "$DOCS_URL" \
+            --arg logo "$LOGO_URL" \
+            --arg resource_img "$RESOURCE_IMAGE" \
+            --arg footer_text "Realizado por: ${{ github.actor }}" \
+            --arg timestamp "$(date --utc +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              embeds: [{
+                author: {
+                  name: "MRI QBOX - Updates",
+                  icon_url: $logo
+                },
+                title: $title,
+                url: $url,
+                description: $desc,
+                fields: [
+                  { name: "O que há de novo?", value: $notes },
+                  { name: "Veja todas as mudanças", value: ("[Link para Commits](\($repo_commits))") },
+                  { name: "Precisa de ajuda?", value: ("[Participe da comunidade](\($invite))"), inline: true },
+                  { name: "Documentação", value: ("[Acesse aqui](\($docs))"), inline: true }
+                ],
+                image: { url: $resource_img },
+                color: 4243543,
+                footer: {
+                  text: $footer_text,
+                  icon_url: $logo
+                },
+                timestamp: $timestamp
+              }]
+            }')
+
+          curl -H "Content-Type: application/json" -d "$EMBED_DATA" $DISCORD_WEBHOOK_URL
