@@ -1,6 +1,8 @@
 local Config = lib.require("shared/config")
 local Utils = lib.require("shared/utils")
 local Storage = lib.require("server/modules/storage")
+local Farms = GlobalState.Farms
+
 
 local function createFarm(source, farm)
     if not IsPlayerAceAllowed(source, Config.PermissionNeeded) then

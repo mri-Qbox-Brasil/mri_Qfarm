@@ -2,7 +2,13 @@ local Config = require("shared/config")
 local Defaults = require("client/defaults")
 
 local inventory = exports[Config.Inventory]
-local items = inventory:Items()
+-- Create a proxy for items to always fetch fresh data
+local items = setmetatable({}, {
+    __index = function(t, k)
+        local invItems = inventory:Items()
+        return invItems[k]
+    end
+})
 
 local PlayerJob = {}
 local PlayerGang = {}
@@ -190,7 +196,8 @@ end
 
 local function getBaseItems()
     local result = {}
-    for k, v in pairs(items) do
+    local invItems = inventory:Items()
+    for k, v in pairs(invItems) do
         result[#result + 1] = {
             value = k,
             label = string.format("%s (%s)", v.label, k)
