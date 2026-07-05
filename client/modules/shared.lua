@@ -9,39 +9,66 @@ local Texts = lib.require("client/interaction/texts")
 local Targets = lib.require("client/interaction/targets")
 local Zones = lib.require("client/interaction/zones")
 
-local function isInAnyVehicle()
-    if IsPedInAnyVehicle(cache.ped, false) then
-        Utils.sendNotification(
-            {
-                id = "farm:error.not_in_vehicle",
-                description = locale("error.not_in_vehicle"),
-                type = "error"
-            }
-        )
-        Utils.debug("checkInteraction", "isInAnyVehicle is true")
-        return true
-    end
-    Utils.debug("checkInteraction", "isInAnyVehicle is false")
-    return false
-end
+local LastVehicleModel = nil
 
-local function wasInFarmVehicle(playerFarm)
-    if playerFarm.config["vehicle"] then
-        if IsVehicleModel(GetVehiclePedIsIn(cache.ped, true), GetHashKey(playerFarm.config["vehicle"])) then
-            Utils.debug("checkInteraction", "wasInFarmVehicle is true")
-            return true
-        else
+CreateThread(
+    function()
+        while true do
+            if cache.vehicle and DoesEntityExist(cache.vehicle) then
+                LastVehicleModel = GetEntityModel(cache.vehicle)
+            end
+
+            Wait(500)
+        end
+    end
+)
+
+local function checkVehicleRequirement(playerFarm)
+    local vehicleRequired = playerFarm.config and playerFarm.config.requireVehicle or false
+    local configuredVehicle = playerFarm.config and playerFarm.config.vehicle or nil
+
+    if vehicleRequired then
+        if not IsPedInAnyVehicle(cache.ped, false) then
             Utils.sendNotification(
                 {
-                    id = "farm:error.incorrect_vehicle",
-                    description = locale("error.incorrect_vehicle"),
+                    id = "farm:error.must_be_in_vehicle",
+                    description = locale("error.must_be_in_vehicle"),
                     type = "error"
                 }
             )
-            Utils.debug("checkInteraction", "wasInFarmVehicle is false")
+            Utils.debug("checkInteraction", "player must be in a vehicle")
+            return false
+        end
+
+        return true
+    end
+
+    if configuredVehicle and configuredVehicle ~= "" then
+        if not LastVehicleModel or LastVehicleModel ~= GetHashKey(configuredVehicle) then
+            Utils.sendNotification(
+                {
+                    id = "farm:error.must_have_last_vehicle",
+                    description = locale("error.must_have_last_vehicle"),
+                    type = "error"
+                }
+            )
+            Utils.debug("checkInteraction", "last vehicle mismatch")
             return false
         end
     end
+
+    if IsPedInAnyVehicle(cache.ped, false) then
+        Utils.sendNotification(
+            {
+                id = "farm:error.must_be_on_foot",
+                description = locale("error.must_be_on_foot"),
+                type = "error"
+            }
+        )
+        Utils.debug("checkInteraction", "player must be on foot")
+        return false
+    end
+
     return true
 end
 
@@ -110,11 +137,7 @@ local function checkInteraction(farmData)
         return false
     end
 
-    if isInAnyVehicle() then
-        return false
-    end
-
-    if not wasInFarmVehicle(farmData.playerFarm) then
+    if not checkVehicleRequirement(farmData.playerFarm) then
         return false
     end
 

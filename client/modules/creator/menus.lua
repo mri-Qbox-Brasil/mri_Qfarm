@@ -160,7 +160,7 @@ function extraItemActionMenu(args)
             },
             {
                 title = locale("actions.delete"),
-                description = locale("actions.description_delete", locale("actions.item")),
+                description = locale("actions.description_delete", locale("actions.item.title")),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
                 iconColor = Defaults.ColorScheme.danger,
@@ -457,7 +457,7 @@ function itemActionMenu(args)
             },
             {
                 title = locale("actions.item.afk"),
-                description = locale("actions.farm.description_afk", ifThen(Defaults.Farms[args.farmKey].config.afk, locale("misc.actived"), locale("misc.disabled"))),
+                description = locale("actions.farm.afk.description", ifThen(Defaults.Farms[args.farmKey].config.afk, locale("misc.actived"), locale("misc.disabled"))),
                 icon = "person-walking",
                 iconAnimation = Config.IconAnimation,
                 onSelect = Actions.changeFarmAFK,
@@ -495,7 +495,7 @@ function itemActionMenu(args)
             },
             {
                 title = locale("actions.delete"),
-                description = locale("actions.description_delete", locale("actions.item")),
+                description = locale("actions.description_delete", locale("actions.item.title")),
                 icon = "trash",
                 iconAnimation = Config.IconAnimation,
                 iconColor = Defaults.ColorScheme.danger,
@@ -609,7 +609,7 @@ function actionMenu(key)
     if farm.config.start.location == nil then
         locationText = locale("actions.farm.set_location")
     end
-    local startDescription = locale("actions.farm.description_nostart", farm.config.nostart and locale("misc.yes") or locale("misc.no"))
+    local startDescription = locale("actions.farm.nostart.description", farm.config.nostart and locale("misc.yes") or locale("misc.no"))
 
     local ctx = {
         id = "action_farm",
@@ -663,7 +663,36 @@ function actionMenu(key)
                 }
             },
             {
-                title = locale("actions.farm.nostart"),
+                title = locale("actions.farm.vehicle_requirement"),
+                icon = ifThen(farm.config.requireVehicle, "toggle-on", "toggle-off"),
+                iconAnimation = Config.IconAnimation,
+                iconColor = ifThen(farm.config.requireVehicle, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
+                onSelect = Actions.toggleFarmVehicleRequirement,
+                description = locale(
+                    "actions.farm.description_vehicle_requirement",
+                    farm.config.requireVehicle and locale("misc.yes") or locale("misc.no")
+                ),
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.farm.vehicle"),
+                icon = "car-side",
+                iconAnimation = Config.IconAnimation,
+                onSelect = Actions.setFarmVehicle,
+                description = locale(
+                    "actions.farm.description_vehicle",
+                    farm.config.vehicle or locale("misc.none")
+                ),
+                args = {
+                    farmKey = key,
+                    callback = actionMenu
+                }
+            },
+            {
+                title = locale("actions.farm.nostart.label"),
                 icon = "bolt",
                 iconAnimation = Config.IconAnimation,
                 iconColor = ifThen(farm.config.nostart, Defaults.ColorScheme.success, Defaults.ColorScheme.danger),
@@ -686,8 +715,8 @@ function actionMenu(key)
                 }
             },
             {
-                title = locale("actions.farm.police_alert"),
-                description = locale("actions.farm.description_police_alert", ifThen(farm.config.policeAlert and farm.config.policeAlert.enabled, locale("misc.yes"), locale("misc.no"))),
+                title = locale("actions.farm.police_alert.label"),
+                description = locale("actions.farm.police_alert.description", ifThen(farm.config.policeAlert and farm.config.policeAlert.enabled, locale("misc.yes"), locale("misc.no"))),
                 icon = "bell",
                 iconAnimation = Config.IconAnimation,
                 onSelect = Actions.togglePoliceAlert,
@@ -740,7 +769,7 @@ function actionMenu(key)
 
     table.insert(ctx.options, {
         title = locale("actions.export"),
-        description = locale("actions.description_export", locale("actions.farm")),
+        description = locale("actions.description_export", locale("actions.farm.title")),
         icon = "share-from-square",
         iconAnimation = Config.IconAnimation,
         onSelect = Actions.exportFarm,
@@ -752,7 +781,7 @@ function actionMenu(key)
 
     table.insert(ctx.options, {
         title = locale("actions.duplicate"),
-        description = locale("actions.description_duplicate", locale("actions.farm")),
+        description = locale("actions.description_duplicate", locale("actions.farm.title")),
         icon = "copy",
         iconAnimation = Config.IconAnimation,
         onSelect = Actions.duplicateFarm,
@@ -775,7 +804,7 @@ function actionMenu(key)
 
     table.insert(ctx.options, {
         title = locale("actions.delete"),
-        description = locale("actions.description_delete", locale("actions.farm")),
+        description = locale("actions.description_delete", locale("actions.farm.title")),
         icon = "trash",
         iconAnimation = Config.IconAnimation,
         iconColor = Defaults.ColorScheme.danger,

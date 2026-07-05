@@ -1,5 +1,6 @@
 local Config = lib.require("shared/config")
 local Utils = lib.require("shared/utils")
+local UiUtils = lib.require("client/ui/utils")
 local Defaults = lib.require("client/defaults")
 
 local function getItems()
@@ -16,6 +17,8 @@ local newFarm = {
             width = nil,
             length = nil
         },
+        requireVehicle = false,
+        vehicle = nil,
         items = {},
         policeAlert = {
             enabled = false,
@@ -179,6 +182,48 @@ function Actions.changeFarmLocation(args)
             }
         )
     end
+    args.callback(args.farmKey)
+end
+
+function Actions.setFarmVehicle(args)
+    local farm = Defaults.Farms[args.farmKey]
+    local input = UiUtils.vehicleSelectInput(
+        locale("actions.farm.vehicle"),
+        locale("actions.farm.description_vehicle"),
+        farm.config.vehicle
+    )
+
+    if input then
+        local vehicle = input[1]
+        if vehicle and vehicle ~= "" then
+            farm.config.vehicle = vehicle
+        else
+            farm.config.vehicle = nil
+        end
+        Defaults.Farms[args.farmKey] = farm
+        lib.notify(
+            {
+                type = "success",
+                description = locale("notify.updated")
+            }
+        )
+    end
+
+    args.callback(args.farmKey)
+end
+
+function Actions.toggleFarmVehicleRequirement(args)
+    local farm = Defaults.Farms[args.farmKey]
+    farm.config.requireVehicle = not farm.config.requireVehicle
+    Defaults.Farms[args.farmKey] = farm
+
+    lib.notify(
+        {
+            type = "success",
+            description = locale("notify.updated")
+        }
+    )
+
     args.callback(args.farmKey)
 end
 

@@ -203,6 +203,24 @@ local function getBaseItems()
     return result
 end
 
+local function getBaseVehicles()
+    local result = {}
+    local vehicles = exports.qbx_core:GetVehiclesByHash()
+    for _, vehicle in pairs(vehicles) do
+        local brand = vehicle.brand and vehicle.brand ~= "" and (vehicle.brand .. " ") or ""
+        result[#result + 1] = {
+            value = vehicle.model,
+            label = string.format("%s%s (%s)", brand, vehicle.name, vehicle.model)
+        }
+    end
+
+    table.sort(result, function(left, right)
+        return left.label < right.label
+    end)
+
+    return result
+end
+
 local function getItemMetadata(item, hideSpawn)
     local result = {}
     if not hideSpawn then
@@ -345,6 +363,7 @@ return {
     getGroupGrades = getGroupGrades,
     getGroupsLabel = getGroupsLabel,
     getBaseItems = getBaseItems,
+    getBaseVehicles = getBaseVehicles,
     getItemMetadata = getItemMetadata,
     getMetadataFromFarm = getMetadataFromFarm,
     getLocation = getLocation,

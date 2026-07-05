@@ -76,6 +76,11 @@ local function startFarming(args)
         if farmData.isTasking then
              Wait(1000)
         else
+            if not Shared.checkInteraction(farmData) then
+                Shared.stopFarming(farmData, true)
+                return
+            end
+
             if not farmData.farmItem.unlimited and farmData.amountCollected >= (farmData.farmItem.max or 100) then
                 if not exports.ox_inventory:CanCarryItem(cache.source, farmData.farmingItemName, 1) then
                     Utils.sendNotification({description = locale("error.inventory_full"), type = "error"})

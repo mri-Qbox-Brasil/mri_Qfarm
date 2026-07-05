@@ -19,6 +19,10 @@
             "description_title": "Farms cadastrados: %s",
             "create": "Criar farm",
             "description_create": "Crie um farm novo.",
+            "vehicle_requirement": "Exigir veículo",
+            "description_vehicle_requirement": "Se ativado, o jogador precisa estar dentro de um veículo. Se desativado, o jogador precisa estar a pé. Atual: %s",
+            "vehicle": "Veículo da rota",
+            "description_vehicle": "Veículo associado a esta rota. Quando estiver a pé, o último veículo usado precisa ser este. Atual: %s",
             "nostart": {
                 "label": "Farm sem início",
                 "description": "Ative essa função para o player não precisar inicar este farm. \nAtual: %s",
@@ -65,9 +69,11 @@
             "import_name": "Nome do Farm",
             "description_import_name": "Digite um nome para o farm importado.",
             "import_data": "Dados do Farm (JSON)",
-            "description_import_data": "Cole aqui o código JSON do farm."
+            "description_import_data": "Cole aqui o código JSON do farm.",
+            "default_import_name": "Farm Importado"
         },
         "item": {
+            "title": "Item",
             "label": "o item",
             "create": "Adicionar Item",
             "description_create": "Adicionar item ao farm.",
@@ -240,8 +246,9 @@
         "group_not_found": "Grupo: %s não encontrado.",
         "farm_not_found": "Farm: %s nao encontrado.",
         "item_cfg_not_found": "Config. do item: %s não encontrada.",
-        "not_in_vehicle": "Você não pode coletar porque está em um veículo.",
-        "incorrect_vehicle": "Você não está utilizando um veículo adequado.",
+        "must_be_in_vehicle": "Você precisa estar dentro de um veículo.",
+        "must_be_on_foot": "Você precisa estar a pé.",
+        "must_have_last_vehicle": "Seu último veículo precisa ser o definido para esta rota.",
         "inventory_full": "O inventário está cheio.",
         "invalid_range": "O mínimo deve ser maior que o máximo.",
         "invalid_item": "Item '%s' não existe.",
@@ -281,7 +288,9 @@
         "actived": "Ativado",
         "disabled": "Desativado",
         "none": "Nenhum",
-        "exported": "Copiado para a área de transferencia!"
+        "exported": "Copiado para a área de transferencia!",
+        "copy_suffix": " (Cópia)",
+        "unknown": "DESCONHECIDO"
     },
     "target": {
         "label": "Coletar"

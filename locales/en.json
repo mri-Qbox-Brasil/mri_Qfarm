@@ -19,6 +19,10 @@
             "description_title": "Registered farms: %s",
             "create": "Create farm",
             "description_create": "Create a new farm.",
+            "vehicle_requirement": "Require vehicle",
+            "description_vehicle_requirement": "If enabled, the player must be inside a vehicle. If disabled, the player must be on foot. Current: %s",
+            "vehicle": "Route vehicle",
+            "description_vehicle": "Vehicle associated with this route. When on foot, the last vehicle used must match this one. Current: %s",
             "nostart": {
                 "label": "Farm without start",
                 "description": "Enable this function so the player didn't need to start this farm. \nCurrent: %s",
@@ -69,6 +73,7 @@
             "default_import_name": "Imported Farm"
         },
         "item": {
+            "title": "Item",
             "label": "the item",
             "create": "Add Item",
             "description_create": "Add item to farm.",
@@ -241,8 +246,9 @@
         "group_not_found": "Group: %s not found.",
         "farm_not_found": "Farm: %s not found.",
         "item_cfg_not_found": "Item config: %s not found.",
-        "not_in_vehicle": "You are not in a vehicle.",
-        "incorrect_vehicle": "You are not using an appropriate vehicle.",
+        "must_be_in_vehicle": "You must be inside a vehicle.",
+        "must_be_on_foot": "You must be on foot.",
+        "must_have_last_vehicle": "Your last vehicle must match the one defined for this route.",
         "inventory_full": "The inventory is full.",
         "invalid_range": "The minimum must be greater than the maximum.",
         "invalid_item": "Item '%s' does not exist.",
@@ -288,5 +294,8 @@
     },
     "target": {
         "label": "Collect"
+    },
+    "farm": {
+        "alert_message": "Suspicious activity on collection route: %s"
     }
 }

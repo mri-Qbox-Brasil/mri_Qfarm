@@ -1,6 +1,5 @@
 local Utils = lib.require("shared/utils")
 
----@class UiUtils
 local UiUtils = {}
 
 --- Exibe uma caixa de diálogo de confirmação com o conteúdo fornecido.
@@ -72,13 +71,30 @@ function UiUtils.itemSelectInput(title, description, defaultValue)
     )
 end
 
+function UiUtils.vehicleSelectInput(title, description, defaultValue)
+    return lib.inputDialog(
+        title,
+        {
+            {
+                type = "select",
+                label = locale("actions.farm.vehicle"),
+                description = description,
+                default = defaultValue or "",
+                options = Utils.getBaseVehicles(),
+                searchable = true,
+                clearable = true
+            }
+        }
+    )
+end
+
 function UiUtils.farmSelectInput(title, description, defaultValue)
     return lib.inputDialog(
         title,
         {
             {
                 type = "select",
-                label = locale("actions.farm"),
+                label = locale("actions.farm.title"),
                 description = description,
                 default = defaultValue or "",
                 options = Utils.getFarms(),

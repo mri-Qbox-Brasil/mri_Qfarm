@@ -25,6 +25,7 @@ client_scripts {
     "client/main.lua",
     "client/defaults.lua",
     "client/creator.lua",
+    "client/ui/*.lua",
     "client/modules/**/*.lua",
     "client/interaction/**/*.lua"
 }
